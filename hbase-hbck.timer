@@ -1,0 +1,9 @@
+[Unit]
+Description=HBase hbck timer
+
+[Timer]
+OnCalendar=*-*-* *:20:00
+Unit=hbck.service
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,9 @@
+[Unit]
+Description=HBase Exporter for Prometheus
+After=network-online.target
+
+[Service]
+User=hbase-exporter
+ExecStart=/usr/local/bin/hbase-exporter
+Restart=always
+RestartSec=30s
