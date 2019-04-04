@@ -16,7 +16,7 @@ for e.g. 'Stale regions in transition'
 
 The hbase hbck log is parsed to check for
 inconsistencies. The log is produced independently from the
-exporter with the help a systemd-timer unit and a systemd-hbck-service unit
+exporter with the help of a systemd-timer unit and a systemd-hbck-service unit
 
 Querying the active namenode requires superuser privileges
 
