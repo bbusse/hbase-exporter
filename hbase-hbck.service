@@ -1,9 +1,9 @@
 [Unit]
-User=hbase
 Description=HBase hbck
 
 [Service]
-Type=Simple
+User=hbase
+Type=simple
 ExecStart=/usr/bin/hbase hbck
 
 [Install]
