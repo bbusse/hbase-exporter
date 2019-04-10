@@ -2,7 +2,7 @@
 Description=HBase hbck timer
 
 [Timer]
-OnCalendar=*-*-* *:20:00
+OnCalendar=*:0/20
 Unit=hbase-hbck.service
 
 [Install]
