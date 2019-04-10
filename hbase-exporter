@@ -64,7 +64,7 @@ class jmx_query():
         hdfs_active_namenode = self.get_active_namenode()
 
         if not hdfs_active_namenode:
-            sys.exit("Failed to determine active namenode")
+            logging.info("Failed to determine active namenode")
 
         url = self.get_url(hdfs_active_namenode)
         jmx = self.query(url)
@@ -144,12 +144,15 @@ class jmx_query():
         return(jmx)
 
     def lookup_keys(self, key, value):
-        if   key == "beans_29_StorageTypeStats_0_value_capacityUsed":
+        if   key.endswith("capacityUsed"):
             prom_hdfs_used.set(value)
-        elif key == "beans_29_StorageTypeStats_0_value_capacityTotal":
+            logging.info("Found jmx key: " + key)
+        elif key.endswith("capacityTotal"):
             prom_hdfs_total.set(value)
-        elif key == "beans_29_StorageTypeStats_0_value_capacityRemaining":
+            logging.info("Found jmx key: " + key)
+        elif key.endswith("capacityRemaining"):
             prom_hdfs_remaining.set(value)
+            logging.info("Found jmx key: " + key)
 
 
 class hbase_exporter():
@@ -221,7 +224,7 @@ class hbase_exporter():
             return nregions_in_transition_stale
 
         except (AttributeError, TypeError):
-            sys.exit('Failed to parse HBase Master UI status page')
+            logging.info('Failed to parse HBase Master UI status page')
 
     def hbck_get_inconsistencies(self):
         re_status = re.compile(r'^Status:\s*(.+?)\s*$')
@@ -235,7 +238,6 @@ class hbase_exporter():
 
         if p.returncode != 0:
             logging.info("Failed to run hbck (%d)" % (p.returncode))
-            sys.exit(1)
 
         for line in output:
             match = re_inconsistencies.match(line)
