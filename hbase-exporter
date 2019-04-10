@@ -70,7 +70,7 @@ class jmx_query():
         jmx = self.query(url)
 
         if (jmx == False):
-            print("Could not read jmx data from: " + url)
+            logging.info("Could not read jmx data from: " + url)
             return False
 
         for k, v in jmx.items():
@@ -91,7 +91,7 @@ class jmx_query():
         try:
             r = subprocess.run(cmd_hdfs_namenodes, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except Exception as e:
-            print("type error: " + str(e))
+            logging.debug("type error: " + str(e))
             logging.debug("Failed to get active master")
             return False
 
@@ -103,7 +103,7 @@ class jmx_query():
         active_namenode = None
 
         if has_ha_element:
-            print("Hadoop High-Availability")
+            logging.info("Hadoop High-Availability")
 
         for property in root:
             if "dfs.ha.namenodes" in property.find("name").text:
@@ -124,10 +124,10 @@ class jmx_query():
             r = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             if len(r.stderr.decode("utf-8")) > 0:
-                print(r.stderr.decode("utf-8"))
+                logging.debug(r.stderr.decode("utf-8"))
 
             if "active" in r.stdout.decode("utf-8").lower():
-                print("Active namenode: " + node_address + " (" + node + ")")
+                logging.info("Active namenode: " + node_address + " (" + node + ")")
                 return node_address
 
         return False
@@ -136,7 +136,7 @@ class jmx_query():
         try:
             r = requests.get(url)
         except Exception as e:
-            print("Could not connect to: " + url)
+            logging.info("Could not connect to: " + url)
             return False
 
         jmx = json.loads(r.text)
@@ -163,8 +163,8 @@ class hbase_exporter():
         try:
             r = subprocess.run(cmd_hbase_active_master, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except Exception as e:
-            print("type error: " + str(e))
-            logging.debug("Failed to get active master")
+            logging.debug("type error: " + str(e))
+            logging.info("Failed to get active master")
             return False
 
         return r.stdout.decode('utf-8')
@@ -200,7 +200,7 @@ class hbase_exporter():
         msg = '{0} regions stale in transition '\
                    .format(nregions_in_transition_stale)
         prom_nregions_in_transition_stale.set(nregions_in_transition_stale)
-        print(msg)
+        logging.info(msg)
         return nregions_in_transition_stale
 
     def hbaseui_parse_output(self, content):
@@ -234,7 +234,7 @@ class hbase_exporter():
         output = output.splitlines()
 
         if p.returncode != 0:
-            print("Failed to run hbck (%d)" % (p.returncode))
+            logging.info("Failed to run hbck (%d)" % (p.returncode))
             sys.exit(1)
 
         for line in output:
@@ -253,15 +253,15 @@ class hbase_exporter():
                 break
 
         if hbck_status is None:
-            print('Failed to find hbck status result')
+            logging.info('Failed to find hbck status result')
         if ninconsistencies is None:
-            print('Failed to find number of inconsistencies')
+            logging.info('Failed to find number of inconsistencies')
 
         if ninconsistencies != None:
             ninconsistencies = int(ninconsistencies)
 
         if not isinstance(ninconsistencies, int):
-            print('Error: Non-integer detected for the number of inconsistencies')
+            logging.info('Error: Non-integer detected for the number of inconsistencies')
 
     @staticmethod
     def hbaseui_parse_table(table):
