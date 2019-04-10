@@ -120,7 +120,7 @@ class jmx_query():
                 if prefix in element_text:
                     node_address = n.find("value").text.split(":")[0]
 
-            cmd = ['sudo su - hdfs -c \'hdfs haadmin -getServiceState ' + node + '\'']
+            cmd = ['hdfs haadmin -getServiceState ' + node]
             r = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             if len(r.stderr.decode("utf-8")) > 0:
