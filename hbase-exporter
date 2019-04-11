@@ -44,11 +44,13 @@ prom_scrape_interval_s = 10
 
 # Prom vars
 REQUEST_TIME = Summary('request_processing_seconds', 'Time spent processing request')
-prom_nregions_in_transition_stale = Gauge('number_of_regions_in_transition_stale', 'Number of stale regions in transition')
-prom_ninconsistencies = Gauge('number_of_inconsistencies', 'Number of inconsistencies in HBase')
+prom_hbase_num_regions_in_transition_stale = Gauge('number_of_regions_in_transition_stale', 'Number of stale regions in transition')
+prom_hbase_num_inconsistencies = Gauge('number_of_inconsistencies', 'Number of inconsistencies in HBase')
 prom_hdfs_total = Gauge('hdfs_bytes_total', 'HDFS total bytes')
 prom_hdfs_used = Gauge('hdfs_bytes_used', 'HDFS used bytes')
 prom_hdfs_remaining = Gauge('hdfs_bytes_remaining', 'HDFS remaining bytes')
+prom_hdfs_num_datanodes_live = Gauge('hdfs_datanodes_live', 'HDFS Live DataNodes')
+prom_hdfs_num_datanodes_dead = Gauge('hdfs_datanodes_dead', 'HDFS Dead DataNodes')
 
 # HDFS/HBase
 hdfs_config_file = "/etc/hadoop/conf/hdfs-site.xml"
@@ -146,13 +148,19 @@ class jmx_query():
     def lookup_keys(self, key, value):
         if   key.endswith("capacityUsed"):
             prom_hdfs_used.set(value)
-            logging.info("Found jmx key: " + key)
+            logging.debug("Found jmx key: " + key)
         elif key.endswith("capacityTotal"):
             prom_hdfs_total.set(value)
-            logging.info("Found jmx key: " + key)
+            logging.debug("Found jmx key: " + key)
         elif key.endswith("capacityRemaining"):
             prom_hdfs_remaining.set(value)
-            logging.info("Found jmx key: " + key)
+            logging.debug("Found jmx key: " + key)
+        elif key.endswith("NumLiveDataNodes"):
+            prom_hdfs_num_datanodes_live.set(value)
+            logging.debug("Found jmx key: " + key)
+        elif key.endswith("NumDeadDataNodes"):
+            prom_hdfs_num_datanodes_dead.set(value)
+            logging.debug("Found jmx key: " + key)
 
 
 class hbase_exporter():
@@ -192,23 +200,23 @@ class hbase_exporter():
         if req.status_code != 200:
             logging.debug('Got a http return code != 200')
 
-        nregions_in_transition_stale = self.hbaseui_parse_output(req.content)
+        num_regions_in_transition_stale = self.hbaseui_parse_output(req.content)
 
-        if nregions_in_transition_stale is None:
+        if num_regions_in_transition_stale is None:
             logging.debug('Parse error - failed to find number of stale regions in transition')
 
-        if not isinstance(nregions_in_transition_stale, int):
+        if not isinstance(num_regions_in_transition_stale, int):
             logging.debug('Parse error - got non-integer for regions stale in transition')
 
         msg = '{0} regions stale in transition '\
-                   .format(nregions_in_transition_stale)
-        prom_nregions_in_transition_stale.set(nregions_in_transition_stale)
+                   .format(num_regions_in_transition_stale)
+        prom_hbase_num_regions_in_transition_stale.set(num_regions_in_transition_stale)
         logging.info(msg)
-        return nregions_in_transition_stale
+        return num_regions_in_transition_stale
 
     def hbaseui_parse_output(self, content):
         soup = BeautifulSoup(content, 'html.parser')
-        nregions_in_transition_stale = 0
+        num_regions_in_transition_stale = 0
         try:
             headings = soup.findAll('h2')
             for heading in headings:
@@ -216,12 +224,12 @@ class hbase_exporter():
                     logging.debug('Found Regions in Transition section header')
                     logging.debug('Looking for table')
                     table = heading.find_next('table')
-                    nregions_in_transition_stale = self.hbaseui_parse_table(table)
-                    if not isinstance(nregions_in_transition_stale, int):
+                    num_regions_in_transition_stale = self.hbaseui_parse_table(table)
+                    if not isinstance(num_regions_in_transition_stale, int):
                         logging.debug('Got non-integer \'{0}\' for stale regions in transition when parsing HBase Master UI'\
-                              .format(nregions_in_transition_stale))
+                              .format(num_regions_in_transition_stale))
 
-            return nregions_in_transition_stale
+            return num_regions_in_transition_stale
 
         except (AttributeError, TypeError):
             logging.info('Failed to parse HBase Master UI status page')
@@ -229,7 +237,7 @@ class hbase_exporter():
     def hbck_get_inconsistencies(self):
         re_status = re.compile(r'^Status:\s*(.+?)\s*$')
         re_inconsistencies = re.compile(r'^\s*(\d+)\s+inconsistencies\s+detected\.?\s*$')
-        ninconsistencies = None
+        num_inconsistencies = None
         hbck_status = None
 
         p = Popen(['hbase', 'hbck'], stdout=PIPE, stderr=PIPE, close_fds=False)
@@ -243,7 +251,7 @@ class hbase_exporter():
             match = re_inconsistencies.match(line)
 
             if match:
-                ninconsistencies = match.group(1)
+                num_inconsistencies = match.group(1)
                 logging.info('Number of inconsistencies:  %s', hbck_status)
                 continue
 
@@ -256,13 +264,13 @@ class hbase_exporter():
 
         if hbck_status is None:
             logging.info('Failed to find hbck status result')
-        if ninconsistencies is None:
+        if num_inconsistencies is None:
             logging.info('Failed to find number of inconsistencies')
 
-        if ninconsistencies != None:
-            ninconsistencies = int(ninconsistencies)
+        if num_inconsistencies != None:
+            num_inconsistencies = int(num_inconsistencies)
 
-        if not isinstance(ninconsistencies, int):
+        if not isinstance(num_inconsistencies, int):
             logging.info('Error: Non-integer detected for the number of inconsistencies')
 
     @staticmethod
@@ -271,8 +279,8 @@ class hbase_exporter():
             for col in row.findChildren('td'):
                 if 'Regions in Transition for more than ' in col.get_text():
                     next_sibling = col.findNext('td')
-                    nregions_in_transition_stale = next_sibling.get_text().strip()
-                    return nregions_in_transition_stale
+                    num_regions_in_transition_stale = next_sibling.get_text().strip()
+                    return num_regions_in_transition_stale
         return None
 
 
