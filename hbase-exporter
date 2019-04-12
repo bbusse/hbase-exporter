@@ -93,6 +93,7 @@ class jmx_query():
 
 
     def get_url(self, service, hostname):
+
         if (namenode_use_tls):
             url_scheme = "https://"
         else:
@@ -259,7 +260,7 @@ class hbase_exporter():
             return False
 
         prom_hbase_up.set(1)
-        return r.stdout.decode('utf-8')
+        return r.stdout.decode('utf-8').rstrip()
 
 
     def get_stale_regions_in_transition(self, hbase_master):
@@ -287,9 +288,9 @@ class hbase_exporter():
             logging.debug('Parse error - failed to find number of stale regions in transition')
 
         if not isinstance(num_regions_in_transition_stale, int):
-            logging.debug('Parse error - got non-integer for regions stale in transition')
+            logging.debug('Parse error - got non-integer for stale regions in transition')
 
-        msg = '{0} regions stale in transition '\
+        msg = '{0} stale regions in transition '\
                    .format(num_regions_in_transition_stale)
 
         prom_hbase_num_regions_in_transition_stale.set(num_regions_in_transition_stale)
