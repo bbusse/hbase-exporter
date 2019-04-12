@@ -4,6 +4,15 @@
 #
 # Björn Busse <bj.rn@baerlin.eu>
 #
+#
+# TODO:
+#
+#  * Remove timestamp from log msg or make them optional,
+#    we already have it in the journal -
+#    at least when not running in a container
+#
+#  * Ask ZooKeeper directly for active namenode/hbase master
+#
 
 from __future__ import absolute_import
 from __future__ import division
@@ -24,7 +33,7 @@ import random
 import re
 import requests
 import subprocess
-from subprocess import Popen
+from subprocess import Popen,PIPE
 import sys
 import time
 import traceback
