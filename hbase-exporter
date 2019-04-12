@@ -260,7 +260,10 @@ class hbase_exporter():
             return False
 
         prom_hbase_up.set(1)
-        return r.stdout.decode('utf-8').rstrip()
+        active_master = r.stdout.decode('utf-8').rstrip()
+        logging.info("Active master: " + node_address + " (" + node + ")")
+
+        return active_master
 
 
     def get_stale_regions_in_transition(self, hbase_master):
