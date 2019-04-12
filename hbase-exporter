@@ -154,6 +154,7 @@ class jmx_query():
         return False
 
     def query(self, url):
+
         try:
             r = requests.get(url)
         except Exception as e:
@@ -237,7 +238,6 @@ class hbase_exporter():
             return False
 
         logging.debug("Response: %s %s", req.status_code, req.reason)
-        logging.debug("Content:\n%s\n%s\n%s", '='*80, req.content.strip(), '='*80)
 
         if req.status_code != 200:
             logging.debug('Got a http return code != 200')
