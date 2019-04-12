@@ -1,4 +1,4 @@
-#!/usr/bin/env python36
+#!/usr/bin/env python3
 #
 # HBase Prometheus Exporter
 #
@@ -31,12 +31,6 @@ import xml.etree.ElementTree as et
 
 
 logfile = ''
-loglevel = 'INFO'
-
-rootlogger = logging.getLogger()
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.INFO)
-rootlogger.addHandler(handler)
 
 # Prometheus
 prom_http_port = 9010
@@ -51,6 +45,9 @@ prom_hdfs_used = Gauge('hdfs_bytes_used', 'HDFS used bytes')
 prom_hdfs_remaining = Gauge('hdfs_bytes_remaining', 'HDFS remaining bytes')
 prom_hdfs_num_datanodes_live = Gauge('hdfs_datanodes_live', 'HDFS Live DataNodes')
 prom_hdfs_num_datanodes_dead = Gauge('hdfs_datanodes_dead', 'HDFS Dead DataNodes')
+prom_hbase_num_regionservers_live = Gauge('hbase_regionservers_live', 'HBase Live Regionservers')
+prom_hbase_num_regionservers_dead = Gauge('hbase_regionservers_dead', 'HBase Dead Regionservers')
+prom_hbase_num_clusterrequests = Gauge('hbase_clusterrequests', 'HBase Clusterrequests')
 
 # HDFS/HBase
 hdfs_config_file = "/etc/hadoop/conf/hdfs-site.xml"
@@ -64,11 +61,34 @@ class jmx_query():
     def main(self, hdfs_namenode_hosts):
 
         hdfs_active_namenode = self.get_active_namenode()
+        hbase_active_master = hbase_exporter.get_active_master()
 
         if not hdfs_active_namenode:
             logging.info("Failed to determine active namenode")
+            return False
 
-        url = self.get_url(hdfs_active_namenode)
+        if not hbase_active_master:
+            logging.info("Failed to determine active HBase master")
+            return False
+
+        url = self.get_url('hdfs', hdfs_active_namenode)
+        self.get_jmx_data(url)
+        url = self.get_url('hbase', hbase_active_master)
+        self.get_jmx_data(url)
+
+    def get_url(self, service, hostname):
+        if (namenode_use_tls):
+            url_scheme = "https://"
+        else:
+            url_scheme = "http://"
+
+        if service == 'hdfs':
+            url = url_scheme + hostname + ":" + str(hdfs_namenode_port) + "/jmx"
+        elif service == 'hbase':
+            url = url_scheme + hostname + ":" + str(hbase_master_ui_port) + "/jmx"
+        return url
+
+    def get_jmx_data(self, url):
         jmx = self.query(url)
 
         if (jmx == False):
@@ -79,22 +99,14 @@ class jmx_query():
             if not v is None:
                 self.lookup_keys(k, v)
 
-    def get_url(self, hostname):
-        if (namenode_use_tls):
-            url_scheme = "https://"
-        else:
-            url_scheme = "http://"
-
-        url = url_scheme + hostname + ":" + str(hdfs_namenode_port) + "/jmx"
-
-        return url
+        return True
 
     def get_active_namenode(hdfs_namenode_hosts):
         try:
             r = subprocess.run(cmd_hdfs_namenodes, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except Exception as e:
             logging.debug("type error: " + str(e))
-            logging.debug("Failed to get active master")
+            logging.debug("Failed to determine active master")
             return False
 
         hosts = r.stdout.decode('utf-8').split(" ")
@@ -161,16 +173,31 @@ class jmx_query():
         elif key.endswith("NumDeadDataNodes"):
             prom_hdfs_num_datanodes_dead.set(value)
             logging.debug("Found jmx key: " + key)
+        elif key.endswith("numRegionServers"):
+            prom_hbase_num_regionservers_live.set(value)
+            logging.debug("Found jmx key: " + key)
+        elif key.endswith("numDeadRegionServers"):
+            prom_hbase_num_regionservers_dead.set(value)
+            logging.debug("Found jmx key: " + key)
+        elif key.endswith("clusterRequests"):
+            prom_hbase_num_clusterrequests.set(value)
+            logging.debug("Found jmx key: " + key)
 
 
 class hbase_exporter():
 
     def main(self, hbase_master_hosts):
         hbase_active_master = self.get_active_master()
+
+        if not hbase_active_master:
+            logging.info("Failed to determine active HBase master")
+            return False
+
         self.get_stale_regions_in_transition(hbase_active_master)
         #self.hbck_get_inconsistencies()
 
-    def get_active_master(self):
+    @staticmethod
+    def get_active_master():
         try:
             r = subprocess.run(cmd_hbase_active_master, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except Exception as e:
@@ -286,6 +313,18 @@ class hbase_exporter():
 
 if __name__ == '__main__':
 
+    file_handler = logging.FileHandler(filename='tmp.log')
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    handlers = [file_handler, stdout_handler]
+
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s',
+        handlers=handlers
+    )
+
+    logger = logging.getLogger('LOGGER_NAME')
+
     parser = argparse.ArgumentParser( description="")
     parser.add_argument('--hbase-master-hosts', dest='hbase_masters', help="Comma seperated list of HBase master hosts", type=str)
     parser.add_argument('--hdfs-namenode-hosts', dest='hdfs_namenodes', help="Comma seperated list of HDFS namenode hosts", type=str)
@@ -293,9 +332,12 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # Logging
-    if not logfile:
-        logging.basicConfig(filename=logfile, level=logging.INFO)
+    # Optional File Logging
+    #if logfile:
+        #handler = logging.FileHandler(logfile)
+        #handler.setLevel(logging.INFO)
+        #log.addHandler(handler)
+        #logging.basicConfig(filename=logfile, level=logging.INFO)
 
     # Start the Prometheus server
     start_http_server(prom_http_port)
