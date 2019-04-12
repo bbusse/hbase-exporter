@@ -261,7 +261,7 @@ class hbase_exporter():
 
         prom_hbase_up.set(1)
         active_master = r.stdout.decode('utf-8').rstrip()
-        logging.info("Active master: " + active master)
+        logging.info("Active master: " + active_master)
 
         return active_master
 
