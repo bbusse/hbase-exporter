@@ -31,6 +31,8 @@ import xml.etree.ElementTree as et
 
 
 logfile = ''
+tmp_path = '/tmp/'
+log_path = tmp_path
 
 # Prometheus
 prom_http_port = 9010
@@ -64,7 +66,7 @@ class jmx_query():
         hbase_active_master = hbase_exporter.get_active_master()
 
         if not hdfs_active_namenode:
-            logging.info("Failed to determine active namenode")
+            logging.info("Failed to determine active HDFS namenode")
             return False
 
         if not hbase_active_master:
@@ -102,11 +104,16 @@ class jmx_query():
         return True
 
     def get_active_namenode(hdfs_namenode_hosts):
+
+        if not which(cmd_hdfs_namenodes[0]):
+            logging.info("Could not find hdfs executable in PATH")
+            return False
+
         try:
             r = subprocess.run(cmd_hdfs_namenodes, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except Exception as e:
             logging.debug("type error: " + str(e))
-            logging.debug("Failed to determine active master")
+            logging.info("Failed to determine active master")
             return False
 
         hosts = r.stdout.decode('utf-8').split(" ")
@@ -198,11 +205,19 @@ class hbase_exporter():
 
     @staticmethod
     def get_active_master():
+
+        if not which(cmd_hbase_active_master[0]):
+            logging.info("Could not find hdfs executable in PATH")
+            return False
+
         try:
             r = subprocess.run(cmd_hbase_active_master, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except Exception as e:
             logging.debug("type error: " + str(e))
-            logging.info("Failed to get active master")
+            logging.info("Failed to determine active HBase master")
+            return False
+
+        if 'Master not running' in r.stdout.decode('utf-8'):
             return False
 
         return r.stdout.decode('utf-8')
@@ -310,10 +325,27 @@ class hbase_exporter():
                     return num_regions_in_transition_stale
         return None
 
+def which(program):
+
+    def is_executable(fn):
+        return os.path.isfile(fn) and os.access(fn, os.X_OK)
+
+    filepath, fname = os.path.split(program)
+
+    if filepath:
+        if is_executable(program):
+            return program
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            exec_file = os.path.join(path, program)
+            if is_executable(exec_file):
+                return exec_file
+
+    return None
 
 if __name__ == '__main__':
 
-    file_handler = logging.FileHandler(filename='tmp.log')
+    file_handler = logging.FileHandler(filename=log_path + 'hbase-exporter.log')
     stdout_handler = logging.StreamHandler(sys.stdout)
     handlers = [file_handler, stdout_handler]
 
