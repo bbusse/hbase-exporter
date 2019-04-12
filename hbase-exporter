@@ -335,6 +335,7 @@ class hbase_exporter():
 
         if p.returncode != 0:
             logging.info("Failed to run hbck (%d)" % (p.returncode))
+            return False
 
         for line in output:
             match = re_inconsistencies.match(line)
