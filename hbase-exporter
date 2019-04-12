@@ -82,6 +82,7 @@ class jmx_query():
         url = self.get_url('hbase', hbase_active_master)
         self.get_jmx_data(url)
 
+
     def get_url(self, service, hostname):
         if (namenode_use_tls):
             url_scheme = "https://"
@@ -93,6 +94,7 @@ class jmx_query():
         elif service == 'hbase':
             url = url_scheme + hostname + ":" + str(hbase_master_ui_port) + "/jmx"
         return url
+
 
     def get_jmx_data(self, url):
         jmx = self.query(url)
@@ -106,6 +108,7 @@ class jmx_query():
                 self.lookup_keys(k, v)
 
         return True
+
 
     def get_active_namenode(hdfs_namenode_hosts):
 
@@ -157,6 +160,7 @@ class jmx_query():
 
         return False
 
+
     def query(self, url):
 
         try:
@@ -168,6 +172,7 @@ class jmx_query():
         jmx = json.loads(r.text)
         jmx = flatten(jmx)
         return(jmx)
+
 
     def lookup_keys(self, key, value):
         if   key.endswith("capacityUsed"):
@@ -211,6 +216,7 @@ class hbase_exporter():
         self.hbck_get_inconsistencies()
         self.check_health()
 
+
     def check_health():
         if self.num_inconsistencies > 0:
             prom_hbase_healthy.set(0)
@@ -224,6 +230,7 @@ class hbase_exporter():
         prom_hbase_healthy.set(1)
 
         return True
+
 
     @staticmethod
     def get_active_master():
@@ -244,6 +251,7 @@ class hbase_exporter():
 
         prom_hbase_up.set(1)
         return r.stdout.decode('utf-8')
+
 
     def get_stale_regions_in_transition(self, hbase_master):
         host = hbase_master.rstrip("\n\r")
@@ -280,6 +288,7 @@ class hbase_exporter():
 
         return num_regions_in_transition_stale
 
+
     def hbaseui_parse_output(self, content):
         soup = BeautifulSoup(content, 'html.parser')
         num_regions_in_transition_stale = 0
@@ -299,6 +308,7 @@ class hbase_exporter():
 
         except (AttributeError, TypeError):
             logging.info('Failed to parse HBase Master UI status page')
+
 
     def hbck_get_inconsistencies(self):
         re_status = re.compile(r'^Status:\s*(.+?)\s*$')
@@ -342,6 +352,7 @@ class hbase_exporter():
 
         self.num_inconsistencies = num_inconsistencies
 
+
     @staticmethod
     def hbaseui_parse_table(table):
         for row in table.findChildren('tr'):
@@ -351,6 +362,7 @@ class hbase_exporter():
                     num_regions_in_transition_stale = next_sibling.get_text().strip()
                     return num_regions_in_transition_stale
         return None
+
 
 def which(program):
 
