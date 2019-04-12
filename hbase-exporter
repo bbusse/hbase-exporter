@@ -13,6 +13,13 @@
 #
 #  * Ask ZooKeeper directly for active namenode/hbase master
 #
+#  * Add an option to relay all metrics
+#
+#  * Add hdfs/hbase binaries to container
+#
+#  * Fix command line argument handling
+#
+#  * Add loglevel to args
 
 from __future__ import absolute_import
 from __future__ import division
