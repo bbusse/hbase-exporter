@@ -31,6 +31,7 @@ from bs4 import BeautifulSoup
 from flatten_json import flatten
 import io
 import json
+from kazoo import client as kz_client
 import logging
 import os
 from prometheus_client import start_http_server, Summary
@@ -46,8 +47,6 @@ import time
 import traceback
 import xml.etree.ElementTree as et
 
-
-logfile = ''
 tmp_path = '/tmp/'
 log_path = tmp_path
 
@@ -75,8 +74,43 @@ hdfs_config_file = "/etc/hadoop/conf/hdfs-site.xml"
 cmd_hbase_active_master = ['/usr/hdp/current/hbase-client/bin/hbase-jruby', '/usr/hdp/current/hbase-client/bin/get-active-master.rb']
 cmd_hbase_hbck = ['hbase', 'hbck']
 cmd_hdfs_namenodes = ['hdfs', 'getconf', '-namenodes']
+
+# Use command line arguments to set the following vars
+# Do not change the here
+logfile = ""
 namenodes = ""
 namenode_use_tls = False
+hbase_master_ui_default_port = 16010
+hdfs_namenode_default_port = 50070
+
+
+class zk():
+    zk_client = ""
+
+    @classmethod
+    def main(self, address='127.0.0.1:2181', timeout=5):
+
+        def listener(state):
+            if state == kz_client.KazooState.CONNECTED:
+                logging.info("ZooKeeper: Client connected")
+            else:
+                logging.info("Failed to connect to ZooKeeper")
+
+        zk_client = kz_client.KazooClient(address)
+        zk_client.add_listener(listener)
+        zk_client.start(timeout)
+        self.zk_client = zk_client
+
+    @classmethod
+    def get_znode_data(self, znode):
+
+        try:
+            self.zk_client.get_children(znode)
+        except Exception as e:
+            logging.debug("Type error: " + str(e))
+            logging.info("ZooKeeper: Could not find znode: " + znode)
+            return False
+
 
 class jmx_query():
 
@@ -136,7 +170,7 @@ class jmx_query():
         try:
             r = subprocess.run(cmd_hdfs_namenodes, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except Exception as e:
-            logging.debug("type error: " + str(e))
+            logging.debug("Type error: " + str(e))
             logging.info("Failed to determine active master")
             return False
 
@@ -148,7 +182,9 @@ class jmx_query():
         active_namenode = None
 
         if has_ha_element:
-            logging.info("Hadoop High-Availability")
+            logging.info("Hadoop High-Availability: True")
+        else:
+            logging.info("Hadoop High-Availability: False")
 
         for property in root:
             if "dfs.ha.namenodes" in property.find("name").text:
@@ -331,11 +367,13 @@ class hbase_exporter():
 
 
     def hbck_get_inconsistencies(self):
+
         re_status = re.compile(r'^Status:\s*(.+?)\s*$')
         re_inconsistencies = re.compile(r'^\s*(\d+)\s+inconsistencies\s+detected\.?\s*$')
         num_inconsistencies = None
         hbck_status = None
 
+        logging.info("HBase: Running hbck consistency check")
         p = Popen(['hbase', 'hbck'], stdout=PIPE, stderr=PIPE, close_fds=False)
         output, error = p.communicate()
         output = output.splitlines()
@@ -415,41 +453,51 @@ if __name__ == '__main__':
         handlers=handlers
     )
 
-    logger = logging.getLogger('LOGGER_NAME')
+    logger = logging.getLogger(__name__)
 
     parser = argparse.ArgumentParser( description="")
     parser.add_argument('--hbase-master-hosts', dest='hbase_masters', help="Comma seperated list of HBase master hosts", type=str)
     parser.add_argument('--hdfs-namenode-hosts', dest='hdfs_namenodes', help="Comma seperated list of HDFS namenode hosts", type=str)
     parser.add_argument('--logfile', dest='logfile', help="Path to logfile, if logging to a file is desired", type=str)
+    parser.add_argument('--loglevel', dest='loglevel', help="Loglevel, default: INFO", type=str)
 
     args = parser.parse_args()
 
     # Optional File Logging
-    #if logfile:
-        #handler = logging.FileHandler(logfile)
-        #handler.setLevel(logging.INFO)
-        #log.addHandler(handler)
-        #logging.basicConfig(filename=logfile, level=logging.INFO)
+    if logfile:
+        handler = logging.FileHandler(logfile)
+        handler.setLevel(logging.INFO)
+        log.addHandler(handler)
 
     # Start the Prometheus server
     start_http_server(prom_http_port)
-    nscrapes = 0
+    nruns = 0
 
     if (args.hbase_masters is None):
         hbase_master_hosts = ['localhost']
-        hbase_master_ui_port = 16010
+        hbase_master_ui_port = hbase_master_ui_default_port
 
     if args.hdfs_namenodes is None:
         hdfs_namenode_hosts = ['localhost']
-        hdfs_namenode_port = 50070
+        hdfs_namenode_port = hdfs_namenode_default_port
+
+    # Start a ZooKeeper client
+    zk.main()
+    clusterid = zk.get_znode_data("/hbase-unsecure/hbaseid")
+
+    if not clusterid:
+        logging.info("ZooKeeper: Could not read clusterid")
+    else:
+        logging.info("clusterid: " + clusterid)
 
     while True:
+        zk.get_znode_data("/hbase-unsecure/master")
         jmx_query().main(hdfs_namenode_hosts)
         hbase_exporter().main(hbase_master_hosts)
 
-        nscrapes += 1
+        nruns += 1
 
-        if nscrapes == 1:
+        if nruns == 1:
             logging.info("Started HBase exporter")
 
         time.sleep(prom_scrape_interval_s)
