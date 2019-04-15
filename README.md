@@ -28,5 +28,5 @@ $ sudo dnf/yum install python36
 
 ```sh
 # As the user executing the exporter:
-$ pip3[.6] install --user beautifulsoup4 flatten_json prometheus_client requests
+$ pip3[.6] install --user beautifulsoup4 flatten_json kazoo prometheus_client requests
 ```
