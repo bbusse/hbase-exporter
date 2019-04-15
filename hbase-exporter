@@ -19,7 +19,7 @@
 #
 #  * Fix command line argument handling
 #
-#  * Add loglevel to args
+#  * Add loglevel and other missing args
 
 from __future__ import absolute_import
 from __future__ import division
@@ -48,7 +48,7 @@ import traceback
 import xml.etree.ElementTree as et
 
 tmp_path = '/tmp/'
-log_path = tmp_path
+logpath = tmp_path
 
 # Prometheus
 prom_http_port = 9010
@@ -76,12 +76,12 @@ cmd_hbase_hbck = ['hbase', 'hbck']
 cmd_hdfs_namenodes = ['hdfs', 'getconf', '-namenodes']
 
 # Use command line arguments to set the following vars
-# Do not change the here
-logfile = ""
+# Do not change the here (See TODO)
 namenodes = ""
 namenode_use_tls = False
 hbase_master_ui_default_port = 16010
 hdfs_namenode_default_port = 50070
+cluster_is_kerberized = False
 
 
 class zk():
@@ -443,18 +443,6 @@ def which(program):
 
 if __name__ == '__main__':
 
-    file_handler = logging.FileHandler(filename=log_path + 'hbase-exporter.log')
-    stdout_handler = logging.StreamHandler(sys.stdout)
-    handlers = [file_handler, stdout_handler]
-
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s',
-        handlers=handlers
-    )
-
-    logger = logging.getLogger(__name__)
-
     parser = argparse.ArgumentParser( description="")
     parser.add_argument('--hbase-master-hosts', dest='hbase_masters', help="Comma seperated list of HBase master hosts", type=str)
     parser.add_argument('--hdfs-namenode-hosts', dest='hdfs_namenodes', help="Comma seperated list of HDFS namenode hosts", type=str)
@@ -464,10 +452,31 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Optional File Logging
-    if logfile:
-        handler = logging.FileHandler(logfile)
-        handler.setLevel(logging.INFO)
-        log.addHandler(handler)
+    if 'logfile' in globals():
+        logpath = logfile.rsplit('/', 1)[0]
+        print(logpath)
+        if not os.access(logpath, os.W_OK):
+            logging.info("Logging: Can not write to directory. Skippking filelogging handler")
+        else:
+            file_handler = logging.FileHandler(filename=logpath + 'hbase-exporter.log')
+            logging.info("Logging: Logging to " + logfile)
+
+    stdout_handler = logging.StreamHandler(sys.stdout)
+
+    if 'file_handler' in locals():
+        handlers = [file_handler, stdout_handler]
+    else:
+        handlers = [stdout_handler]
+
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s',
+        handlers=handlers
+    )
+
+    logger = logging.getLogger(__name__)
+
+
 
     # Start the Prometheus server
     start_http_server(prom_http_port)
@@ -483,7 +492,12 @@ if __name__ == '__main__':
 
     # Start a ZooKeeper client
     zk.main()
-    clusterid = zk.get_znode_data("/hbase-unsecure/hbaseid")
+    if cluster_is_kerbeized:
+        znode_clusterid("/hbase")
+    else:
+        znode_clusterid("/hbase-unsecure")
+
+    clusterid = zk.get_znode_data(znode_hbase + "/hbaseid")
 
     if not clusterid:
         logging.info("ZooKeeper: Could not read clusterid")
