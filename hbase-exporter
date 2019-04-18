@@ -80,7 +80,7 @@ cmd_hbase_hbck = ['hbase', 'hbck']
 cmd_hdfs_namenodes = ['hdfs', 'getconf', '-namenodes']
 
 # Use command line arguments to set the following vars
-# Do not change the here (See TODO)
+# Do not change them here (See TODO)
 namenodes = ""
 namenode_use_tls = False
 hbase_master_ui_default_port = 16010
@@ -94,14 +94,7 @@ class zk():
     @classmethod
     def main(self, address='127.0.0.1:2181', timeout=5):
 
-        def listener(state):
-            if state == kz_client.KazooState.CONNECTED:
-                logging.info("ZooKeeper: Client connected")
-            else:
-                logging.info("Failed to connect to ZooKeeper")
-
         zk_client = kz_client.KazooClient(address)
-        zk_client.add_listener(listener)
 
         try:
             zk_client.start(timeout)
@@ -110,16 +103,33 @@ class zk():
             return False
 
         self.zk_client = zk_client
+        self.zk_client.add_listener(self.listener)
+
+        return True
+
+    def listener(state):
+        if state == kz_client.KazooState.CONNECTED:
+            logging.info("ZooKeeper: Client connected")
+        else:
+            logging.info("ZooKeeper: Failed to connect to ZooKeeper")
 
     @classmethod
     def get_znode_data(self, znode):
+        data = ""
 
         try:
-            self.zk_client.get(znode)
+            self.zk_client.exists(znode)
         except Exception as e:
-            logging.debug("Type error: " + str(e))
-            logging.info("ZooKeeper: Could not find znode: " + znode)
+            logging.info("ZooKeeper: znode does not exist: " + znode)
             return False
+
+        try:
+            data = self.zk_client.get(znode)
+        except:
+            logging.info("ZooKeeper: Could not get znode data from " + znode)
+            return False
+
+        return data
 
     def listener(state):
         if state == KazooState.LOST:
@@ -315,9 +325,7 @@ class hbase_exporter():
 
         try:
             r = subprocess.run(cmd_hbase_active_master, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        except Exception as e:
-            logging.debug("type error: " + str(e))
-            logging.info("Failed to determine active HBase master")
+        except:
             return False
 
         if 'Master not running' in r.stdout.decode('utf-8'):
@@ -502,7 +510,8 @@ if __name__ == '__main__':
         start_http_server(prom_http_port)
     except Exception as e:
         logging.debug("Failed to start Prometheus webserver: " + str(e))
-        logging.info("There might be another instance of " + sys.argv[0] + " already running, can not bind to " + str(prom_http_port) + ", exiting..")
+        logging.info("There might be another instance of " + sys.argv[0] + \
+                     " already running, can not bind to " + str(prom_http_port) + ", exiting..")
         sys.exit()
 
     nruns = 0
@@ -523,22 +532,26 @@ if __name__ == '__main__':
         r = zk.main(zk_address)
         time.sleep(zk_reconnect_interval_s)
 
-    zk.add_listener(listener)
-
     if cluster_is_kerberized:
-        znode_clusterid("/hbase")
+        znode_hbase = "/hbase"
     else:
-        znode_clusterid("/hbase-unsecure")
+        znode_hbase = "/hbase-unsecure"
 
     clusterid = zk.get_znode_data(znode_hbase + "/hbaseid")
 
     if not clusterid:
         logging.info("ZooKeeper: Could not read clusterid")
     else:
-        logging.info("clusterid: " + clusterid)
+        logging.info("ZooKeeper: Clusterid: " + str(clusterid[0]))
 
     while True:
-        zk.get_znode_data("/hbase-unsecure/master")
+        m = zk.get_znode_data(znode_hbase + "/master")
+
+        if not m:
+            logging.info("ZooKeeper: Failed to get HBase master")
+        else:
+            logging.info("ZooKeeper: " + str(m[0]))
+
         jmx_query().main(hdfs_namenode_hosts)
         hbase_exporter().main(hbase_master_hosts)
 
