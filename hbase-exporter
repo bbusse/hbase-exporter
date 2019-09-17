@@ -69,6 +69,9 @@ prom_hbase_healthy = Gauge('hbase_healthy', 'HBase is up and running, a master i
 prom_hbase_num_regionservers_live = Gauge('hbase_regionservers_live', 'HBase Live Regionservers')
 prom_hbase_num_regionservers_dead = Gauge('hbase_regionservers_dead', 'HBase Dead Regionservers')
 prom_hbase_num_clusterrequests = Gauge('hbase_clusterrequests', 'HBase Clusterrequests')
+prom_zookeeper_num = Gauge('zookeeper_num', 'Known ZooKeeper Servers')
+prom_zookeeper_num_live = Gauge('zookeeper_num_live', 'Live ZooKeeper Servers')
+prom_zookeeper_num_dead = Gauge('zookeeper_num_dead', 'Dead ZooKeeper Servers')
 
 # HDFS/HBase
 hdfs_config_file = "/etc/hadoop/conf/hdfs-site.xml"
@@ -490,6 +493,9 @@ if __name__ == '__main__':
     hdfs_namenodes = args.hdfs_namenode
     del locals()['args']
 
+    nzookeeper_server = len(zookeeper_server)
+    prom_zookeeper_num.set(nzookeeper_server)
+
     # Optional File Logging
     if 'logfile' is not None:
         tlog = logfile.rsplit('/', 1)
@@ -533,17 +539,21 @@ if __name__ == '__main__':
     nruns = 0
 
     # Start a ZooKeeper client
+    # for each configured ZooKeeper server
     r = False
     nzk = 0
 
+    # Try to connect to one of the known servers
     while not r:
         for zk_address in zookeeper_server:
             nzk += 1
             logging.info("ZooKeeper: Trying to connect to "
                           + zk_address
-                          + ' (' + str(nzk) + '/' + str(len(zookeeper_server)) + ')')
+                          + ' (' + str(nzk) + '/' + str(nzookeeper_server) + ')')
 
             r = zk.main(zk_address)
+            if r:
+                break
             time.sleep(zk_reconnect_interval_s)
 
     if cluster_is_kerberized:
