@@ -51,11 +51,8 @@ tmp_path = '/tmp/'
 logpath = tmp_path
 
 # ZooKeeper
-zk_address = 'localhost:2181'
 zk_reconnect_interval_s = 30
 
-# Prometheus
-prom_http_port = 9010
 prom_scrape_interval_s = 10
 
 # Prom vars
@@ -92,7 +89,7 @@ class zk():
     zk_client = ""
 
     @classmethod
-    def main(self, address='127.0.0.1:2181', timeout=5):
+    def main(self, address, timeout=5):
 
         zk_client = kz_client.KazooClient(address)
 
@@ -172,9 +169,9 @@ class jmx_query():
             url_scheme = "http://"
 
         if service == 'hdfs':
-            url = url_scheme + hostname + ":" + str(hdfs_namenode_port) + "/jmx"
+            url = url_scheme + hostname + ":" + str(hdfs_namenode_default_port) + "/jmx"
         elif service == 'hbase':
-            url = url_scheme + hostname + ":" + str(hbase_master_ui_port) + "/jmx"
+            url = url_scheme + hostname + ":" + str(hbase_master_ui_default_port) + "/jmx"
         return url
 
 
@@ -340,7 +337,7 @@ class hbase_exporter():
 
     def get_stale_regions_in_transition(self, hbase_master):
         host = hbase_master.rstrip("\n\r")
-        port = hbase_master_ui_port
+        port = hbase_master_ui_default_port
         url = 'http://%(host)s:%(port)s/master-status' % locals()
 
         logging.debug('GET %s', url)
@@ -470,26 +467,42 @@ def which(program):
 
     return None
 
+
 if __name__ == '__main__':
 
+    hbase_master_default_address = 'localhost:' + str(hbase_master_ui_default_port)
+    hdfs_namenode_default_address = 'localhost:' + str(hdfs_namenode_default_port)
+
     parser = argparse.ArgumentParser( description="")
-    parser.add_argument('--hbase-master-hosts', dest='hbase_masters', help="Comma seperated list of HBase master hosts", type=str)
-    parser.add_argument('--hdfs-namenode-hosts', dest='hdfs_namenodes', help="Comma seperated list of HDFS namenode hosts", type=str)
-    parser.add_argument('--prometheus-exporter-port', dest='prom_http_port', help="Port on which to export metrics for Prometheus", type=int)
-    parser.add_argument('--logfile', dest='logfile', help="Path to logfile, if logging to a file is desired", type=str)
-    parser.add_argument('--loglevel', dest='loglevel', help="Loglevel, default: INFO", type=str)
+    parser.add_argument('--hbase-master', dest='hbase_master', action='append', help="HBase master address, can be specified multiple times", type=str, default=hbase_master_default_address)
+    parser.add_argument('--hdfs-namenodes', dest='hdfs_namenode', action='append', help="HDFS namenode address, can be specified multiple times", type=str, default=hdfs_namenode_default_address)
+    parser.add_argument('--zookeeper-server-address', dest='zookeeper_server', action='append', help="ZooKeeper server address, can be specified multiple times", type=str)
+    parser.add_argument('--prometheus-exporter-port', dest='prom_http_port', help="Listen port for Prometheus export", type=int, default=9010)
+    parser.add_argument('--logfile', dest='logfile', help="Path to optional logfile", type=str)
+    parser.add_argument('--loglevel', dest='loglevel', help="Loglevel, default: INFO", type=str, default='INFO')
 
     args = parser.parse_args()
+    prom_http_port = args.prom_http_port
+    logfile = args.logfile
+    loglevel = args.loglevel
+    zookeeper_server = args.zookeeper_server
+    hbase_master = args.hbase_master
+    hdfs_namenodes = args.hdfs_namenode
+    del locals()['args']
 
     # Optional File Logging
-    if 'logfile' in locals():
-        logpath = logfile.rsplit('/', 1)[0]
-        print(logpath)
+    if 'logfile' is not None:
+        tlog = logfile.rsplit('/', 1)
+        logpath = tlog[0]
+        logfile = tlog[1]
         if not os.access(logpath, os.W_OK):
-            logging.info("Logging: Can not write to directory. Skippking filelogging handler")
+            # Our logger is not set up yet, so we use print here
+            print("Logging: Can not write to directory. Skippking filelogging handler")
         else:
-            file_handler = logging.FileHandler(filename=logpath + 'hbase-exporter.log')
-            logging.info("Logging: Logging to " + logfile)
+            fn = logpath + '/' + logfile
+            file_handler = logging.FileHandler(filename=fn)
+            # Our logger is not set up yet, so we use print here
+            print("Logging: Logging to " + fn)
 
     stdout_handler = logging.StreamHandler(sys.stdout)
 
@@ -499,12 +512,14 @@ if __name__ == '__main__':
         handlers = [stdout_handler]
 
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=logging.INFO,
         format='[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s',
         handlers=handlers
     )
 
     logger = logging.getLogger(__name__)
+    level = logging.getLevelName(loglevel)
+    logger.setLevel(level)
 
     # Start the Prometheus server
     try:
@@ -517,21 +532,19 @@ if __name__ == '__main__':
 
     nruns = 0
 
-    if (args.hbase_masters is None):
-        hbase_master_hosts = ['localhost']
-        hbase_master_ui_port = hbase_master_ui_default_port
-
-    if args.hdfs_namenodes is None:
-        hdfs_namenode_hosts = ['localhost']
-        hdfs_namenode_port = hdfs_namenode_default_port
-
     # Start a ZooKeeper client
     r = False
+    nzk = 0
 
     while not r:
-        logging.info("ZooKeeper: Trying to connect to " + zk_address)
-        r = zk.main(zk_address)
-        time.sleep(zk_reconnect_interval_s)
+        for zk_address in zookeeper_server:
+            nzk += 1
+            logging.info("ZooKeeper: Trying to connect to "
+                          + zk_address
+                          + ' (' + str(nzk) + '/' + str(len(zookeeper_server)) + ')')
+
+            r = zk.main(zk_address)
+            time.sleep(zk_reconnect_interval_s)
 
     if cluster_is_kerberized:
         znode_hbase = "/hbase"
@@ -553,8 +566,8 @@ if __name__ == '__main__':
         else:
             logging.info("ZooKeeper: " + str(m[0]))
 
-        jmx_query().main(hdfs_namenode_hosts)
-        hbase_exporter().main(hbase_master_hosts)
+        jmx_query().main(hdfs_namenodes)
+        hbase_exporter().main(hbase_master)
 
         nruns += 1
 
