@@ -475,13 +475,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser( description="")
     parser.add_argument('--hbase-master-hosts', dest='hbase_masters', help="Comma seperated list of HBase master hosts", type=str)
     parser.add_argument('--hdfs-namenode-hosts', dest='hdfs_namenodes', help="Comma seperated list of HDFS namenode hosts", type=str)
+    parser.add_argument('--prometheus-exporter-port', dest='prom_http_port', help="Port on which to export metrics for Prometheus", type=int)
     parser.add_argument('--logfile', dest='logfile', help="Path to logfile, if logging to a file is desired", type=str)
     parser.add_argument('--loglevel', dest='loglevel', help="Loglevel, default: INFO", type=str)
 
     args = parser.parse_args()
 
     # Optional File Logging
-    if 'logfile' in globals():
+    if 'logfile' in locals():
         logpath = logfile.rsplit('/', 1)[0]
         print(logpath)
         if not os.access(logpath, os.W_OK):
