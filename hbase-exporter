@@ -16,10 +16,6 @@
 #  * Add an option to relay all metrics
 #
 #  * Add hdfs/hbase binaries to container
-#
-#  * Fix command line argument handling
-#
-#  * Add loglevel and other missing args
 
 from __future__ import absolute_import
 from __future__ import division
@@ -31,7 +27,7 @@ from bs4 import BeautifulSoup
 from flatten_json import flatten
 import io
 import json
-from kazoo import client as kz_client
+from kazoo.client import KazooClient
 import logging
 import os
 from prometheus_client import start_http_server, Summary
@@ -92,9 +88,10 @@ class zk():
     zk_client = ""
 
     @classmethod
-    def main(self, address, timeout=5):
+    def main(self, address_list, use_tls, timeout=5):
 
-        zk_client = kz_client.KazooClient(address)
+        addresses = ','.join(address_list)
+        zk_client = KazooClient(addresses, use_ssl=use_tls, read_only=True)
 
         try:
             zk_client.start(timeout)
@@ -301,8 +298,11 @@ class hbase_exporter():
         self.check_health()
 
 
-    def check_health():
-        if self.num_inconsistencies > 0:
+    def check_health(self):
+        if self.num_inconsistencies == -1:
+            prom_hbase_healthy.set(0)
+            return False
+        elif self.num_inconsistencies > 0:
             prom_hbase_healthy.set(0)
             return False
 
@@ -399,7 +399,7 @@ class hbase_exporter():
 
         re_status = re.compile(r'^Status:\s*(.+?)\s*$')
         re_inconsistencies = re.compile(r'^\s*(\d+)\s+inconsistencies\s+detected\.?\s*$')
-        num_inconsistencies = None
+        self.num_inconsistencies = None
         hbck_status = None
 
         logging.info("HBase: Running hbck consistency check")
@@ -409,13 +409,14 @@ class hbase_exporter():
 
         if p.returncode != 0:
             logging.info("Failed to run hbck (%d)" % (p.returncode))
+            self.num_inconsistencies = -1
             return False
 
         for line in output:
             match = re_inconsistencies.match(line)
 
             if match:
-                num_inconsistencies = match.group(1)
+                self.num_inconsistencies = match.group(1)
                 logging.info('Number of inconsistencies:  %s', hbck_status)
                 continue
 
@@ -428,17 +429,17 @@ class hbase_exporter():
 
         if hbck_status is None:
             logging.info('Failed to find hbck status result')
-        if num_inconsistencies is None:
+        if self.num_inconsistencies is None:
             logging.info('Failed to find number of inconsistencies')
+            self.num_inconsistencies = -1
 
-        if num_inconsistencies != None:
-            num_inconsistencies = int(num_inconsistencies)
+        if self.num_inconsistencies != None:
+            self.num_inconsistencies = int(self.num_inconsistencies)
 
-        if not isinstance(num_inconsistencies, int):
+        if not isinstance(self.num_inconsistencies, int):
             logging.info('Error: Non-integer detected for the number of inconsistencies')
+            self.num_inconsistencies = -1
             return False
-
-        self.num_inconsistencies = num_inconsistencies
 
 
     @staticmethod
@@ -478,8 +479,9 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser( description="")
     parser.add_argument('--hbase-master', dest='hbase_master', action='append', help="HBase master address, can be specified multiple times", type=str, default=hbase_master_default_address)
-    parser.add_argument('--hdfs-namenodes', dest='hdfs_namenode', action='append', help="HDFS namenode address, can be specified multiple times", type=str, default=hdfs_namenode_default_address)
-    parser.add_argument('--zookeeper-server-address', dest='zookeeper_server', action='append', help="ZooKeeper server address, can be specified multiple times", type=str)
+    parser.add_argument('--hdfs-namenode', dest='hdfs_namenode', action='append', help="HDFS namenode address, can be specified multiple times", type=str, default=hdfs_namenode_default_address)
+    parser.add_argument('--zookeeper-server-address', dest='zk_server', action='append', help="ZooKeeper server address, can be specified multiple times", type=str)
+    parser.add_argument('--zookeeper-use-tls', dest='zk_use_tls', help="Use TLS when connecting to ZooKeeper", type=bool, default=False)
     parser.add_argument('--prometheus-exporter-port', dest='prom_http_port', help="Listen port for Prometheus export", type=int, default=9010)
     parser.add_argument('--logfile', dest='logfile', help="Path to optional logfile", type=str)
     parser.add_argument('--loglevel', dest='loglevel', help="Loglevel, default: INFO", type=str, default='INFO')
@@ -488,16 +490,17 @@ if __name__ == '__main__':
     prom_http_port = args.prom_http_port
     logfile = args.logfile
     loglevel = args.loglevel
-    zookeeper_server = args.zookeeper_server
+    zk_server = args.zk_server
+    zk_use_tls = args.zk_use_tls
     hbase_master = args.hbase_master
     hdfs_namenodes = args.hdfs_namenode
     del locals()['args']
 
-    nzookeeper_server = len(zookeeper_server)
-    prom_zookeeper_num.set(nzookeeper_server)
+    nzk_server = len(zk_server)
+    prom_zookeeper_num.set(nzk_server)
 
     # Optional File Logging
-    if 'logfile' is not None:
+    if logfile:
         tlog = logfile.rsplit('/', 1)
         logpath = tlog[0]
         logfile = tlog[1]
@@ -545,16 +548,8 @@ if __name__ == '__main__':
 
     # Try to connect to one of the known servers
     while not r:
-        for zk_address in zookeeper_server:
-            nzk += 1
-            logging.info("ZooKeeper: Trying to connect to "
-                          + zk_address
-                          + ' (' + str(nzk) + '/' + str(nzookeeper_server) + ')')
-
-            r = zk.main(zk_address)
-            if r:
-                break
-            time.sleep(zk_reconnect_interval_s)
+        r = zk.main(zk_server, zk_use_tls)
+        time.sleep(zk_reconnect_interval_s)
 
     if cluster_is_kerberized:
         znode_hbase = "/hbase"
@@ -578,6 +573,8 @@ if __name__ == '__main__':
 
         jmx_query().main(hdfs_namenodes)
         hbase_exporter().main(hbase_master)
+        #prom_zookeeper_num_live.set(nzookeeper_live)
+        #prom_zookeeper_num_dead.set(nzk_server - nzookeeper_live)
 
         nruns += 1
 
