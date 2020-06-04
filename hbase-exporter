@@ -65,6 +65,7 @@ prom_hbase_healthy = Gauge('hbase_healthy', 'HBase is up and running, a master i
 prom_hbase_num_regionservers_live = Gauge('hbase_regionservers_live', 'HBase Live Regionservers')
 prom_hbase_num_regionservers_dead = Gauge('hbase_regionservers_dead', 'HBase Dead Regionservers')
 prom_hbase_num_clusterrequests = Gauge('hbase_clusterrequests', 'HBase Clusterrequests')
+prom_hbase_regions_in_transition_stale = Gauge('regions_in_transition_stale', 'Number of stale regions in transition')
 prom_zookeeper_num = Gauge('zookeeper_num', 'Known ZooKeeper Servers')
 prom_zookeeper_num_live = Gauge('zookeeper_num_live', 'Live ZooKeeper Servers')
 prom_zookeeper_num_dead = Gauge('zookeeper_num_dead', 'Dead ZooKeeper Servers')
@@ -144,7 +145,7 @@ class jmx_query():
 
     def main(self, hdfs_namenode_hosts):
 
-        hdfs_active_namenode = self.get_active_namenode()
+        hdfs_active_namenode = self.get_active_namenode(hdfs_namenode_hosts)
         hbase_active_master = hbase_exporter.get_active_master()
 
         if not hdfs_active_namenode:
@@ -189,7 +190,7 @@ class jmx_query():
         return True
 
 
-    def get_active_namenode(hdfs_namenode_hosts):
+    def get_active_namenode(self, hdfs_namenode_hosts):
 
         if not which(cmd_hdfs_namenodes[0]):
             logging.info("Could not find hdfs executable in PATH")
@@ -199,7 +200,6 @@ class jmx_query():
             r = subprocess.run(cmd_hdfs_namenodes, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except Exception as e:
             logging.debug("Type error: " + str(e))
-            logging.info("Failed to determine active master")
             return False
 
         hosts = r.stdout.decode('utf-8').split(" ")
@@ -208,11 +208,6 @@ class jmx_query():
         root = tree.getroot()
         has_ha_element = False
         active_namenode = None
-
-        if has_ha_element:
-            logging.info("Hadoop High-Availability: True")
-        else:
-            logging.info("Hadoop High-Availability: False")
 
         for property in root:
             if "dfs.ha.namenodes" in property.find("name").text:
@@ -229,6 +224,7 @@ class jmx_query():
                 if prefix in element_text:
                     node_address = n.find("value").text.split(":")[0]
 
+            # Needs to either run with root privileges or as hdfs user
             cmd = ['hdfs haadmin -getServiceState ' + node]
             r = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -238,6 +234,11 @@ class jmx_query():
             if "active" in r.stdout.decode("utf-8").lower():
                 logging.info("Active namenode: " + node_address + " (" + node + ")")
                 return node_address
+
+        if has_ha_element:
+            logging.info("Hadoop High-Availability: True")
+        else:
+            logging.info("Hadoop High-Availability: False")
 
         return False
 
@@ -306,7 +307,7 @@ class hbase_exporter():
             prom_hbase_healthy.set(0)
             return False
 
-        if prom_ihbase_regions_in_transition_stale > 0:
+        if self.num_regions_in_transition_stale > 0:
             prom_hbase_healthy.set(0)
             return False
 
@@ -371,7 +372,7 @@ class hbase_exporter():
         prom_hbase_num_regions_in_transition_stale.set(num_regions_in_transition_stale)
         logging.info(msg)
 
-        return num_regions_in_transition_stale
+        self.num_regions_in_transition_stale = num_regions_in_transition_stale
 
 
     def hbaseui_parse_output(self, content):
@@ -413,14 +414,14 @@ class hbase_exporter():
             return False
 
         for line in output:
-            match = re_inconsistencies.match(line)
+            match = re_inconsistencies.match(line.decode('utf-8'))
 
             if match:
                 self.num_inconsistencies = match.group(1)
                 logging.info('Number of inconsistencies:  %s', hbck_status)
                 continue
 
-                match = re_status.match(line)
+            match = re_status.match(line.decode('utf-8'))
 
             if match:
                 hbck_status = match.group(1)
@@ -480,7 +481,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser( description="")
     parser.add_argument('--hbase-master', dest='hbase_master', action='append', help="HBase master address, can be specified multiple times", type=str, default=hbase_master_default_address)
     parser.add_argument('--hdfs-namenode', dest='hdfs_namenode', action='append', help="HDFS namenode address, can be specified multiple times", type=str, default=hdfs_namenode_default_address)
-    parser.add_argument('--zookeeper-server-address', dest='zk_server', action='append', help="ZooKeeper server address, can be specified multiple times", type=str)
+    parser.add_argument('--zookeeper-server-address', dest='zk_server', action='append', help="ZooKeeper server address, can be specified multiple times", type=str, required=True)
     parser.add_argument('--zookeeper-use-tls', dest='zk_use_tls', help="Use TLS when connecting to ZooKeeper", type=bool, default=False)
     parser.add_argument('--prometheus-exporter-port', dest='prom_http_port', help="Listen port for Prometheus export", type=int, default=9010)
     parser.add_argument('--logfile', dest='logfile', help="Path to optional logfile", type=str)
