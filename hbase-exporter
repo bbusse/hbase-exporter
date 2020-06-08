@@ -429,6 +429,7 @@ class hbase_exporter():
     def hbck_get_inconsistencies(self):
 
         re_status = re.compile(r'^Status:\s*(.+?)\s*$')
+        re_duplicate = re.compile(r'(.*)ERROR\s\[main\]\sutil\.HBaseFsck\:\sAnother\sinstance\sof\shbck\sis\srunning(.*)$')
         re_inconsistencies = re.compile(r'^\s*(\d+)\s+inconsistencies\s+detected\.?\s*$')
         self.num_inconsistencies = None
         hbck_status = None
@@ -437,18 +438,14 @@ class hbase_exporter():
         p = Popen(['hbase', 'hbck'], stdout=PIPE, stderr=PIPE, close_fds=False)
         output, error = p.communicate()
         output = output.splitlines()
-
-        if p.returncode != 0:
-            logging.info("Failed to run hbck (%d)" % (p.returncode))
-            self.num_inconsistencies = -1
-            return False
+        error = error.splitlines()
 
         for line in output:
             match = re_inconsistencies.match(line.decode('utf-8'))
 
             if match:
                 self.num_inconsistencies = match.group(1)
-                logging.info('Number of inconsistencies:  %s', hbck_status)
+                logging.info('Number of inconsistencies:  %s', self.num_inconsistencies)
                 continue
 
             match = re_status.match(line.decode('utf-8'))
@@ -458,20 +455,32 @@ class hbase_exporter():
                 logging.info('hbck status = %s', hbck_status)
                 break
 
+        for line in error:
+            match = re_duplicate.match(line.decode('utf-8'))
+
+            if match:
+                hbck_status = match.group(0)
+                logging.info('hbck status = %s', hbck_status)
+                break
+
         if hbck_status is None:
-            logging.info('Failed to find hbck status result')
+            logging.info('hbck: Failed to find hbck status result')
         if self.num_inconsistencies is None:
-            logging.info('Failed to find number of inconsistencies')
+            logging.info('hbck: Failed to find number of inconsistencies')
             self.num_inconsistencies = -1
 
         if self.num_inconsistencies != None:
             self.num_inconsistencies = int(self.num_inconsistencies)
 
         if not isinstance(self.num_inconsistencies, int):
-            logging.info('Error: Non-integer detected for the number of inconsistencies')
+            logging.info('hbck: Non-integer detected for the number of inconsistencies')
             self.num_inconsistencies = -1
             return False
 
+        if p.returncode != 0:
+            logging.info("hbck: Failed to run hbck (%d)" % (p.returncode))
+            self.num_inconsistencies = -1
+            return False
 
     @staticmethod
     def hbaseui_parse_table(table):
