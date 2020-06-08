@@ -143,6 +143,13 @@ class zk():
 
 class jmx_query():
 
+    def __init__(self, relay_complete_jmx):
+
+        self.relay_complete_jmx = relay_complete_jmx
+        self.prom_jmx_keys = []
+        self.prom_jmx = {}
+
+
     def main(self, hdfs_namenode_hosts):
 
         hdfs_active_namenode = self.get_active_namenode(hdfs_namenode_hosts)
@@ -177,6 +184,7 @@ class jmx_query():
 
 
     def get_jmx_data(self, url):
+        logging.info("Fetching jmx data")
         jmx = self.query(url)
 
         if (jmx == False):
@@ -257,7 +265,10 @@ class jmx_query():
 
 
     def lookup_keys(self, key, value):
-        if   key.endswith("capacityUsed"):
+        denylist = ["Name", "name", "Type", "Object",
+                    "ObjectName", "Valid", "tag.Context", "tag.Hostname"]
+
+        if key.endswith("capacityUsed"):
             prom_hdfs_used.set(value)
             logging.debug("Found jmx key: " + key)
         elif key.endswith("capacityTotal"):
@@ -281,6 +292,27 @@ class jmx_query():
         elif key.endswith("clusterRequests"):
             prom_hbase_num_clusterrequests.set(value)
             logging.debug("Found jmx key: " + key)
+        else:
+            if not self.relay_complete_jmx:
+                return
+
+            jmx_key = key.split("_", 2)
+            if jmx_key[2] not in denylist:
+                jmx_key = "jmx_" + key
+                jmx_key = jmx_key.replace(".", "_")
+                jmx_key = jmx_key.replace("-", "_")
+                logging.debug("Found jmx key: " + jmx_key)
+
+                if not isinstance(value, str) and not type(value) is list:
+                    prom_jmx_key = "prom_" + jmx_key
+
+                    # Check if key is already registered
+                    if prom_jmx_key not in self.prom_jmx_keys:
+                        self.prom_jmx_keys.append(prom_jmx_key)
+                        self.prom_jmx[prom_jmx_key] = Gauge(prom_jmx_key, prom_jmx_key)
+
+                    # Set prometheys value
+                    self.prom_jmx[prom_jmx_key].set(value)
 
 
 class hbase_exporter():
@@ -484,6 +516,7 @@ if __name__ == '__main__':
     parser.add_argument('--zookeeper-server-address', dest='zk_server', action='append', help="ZooKeeper server address, can be specified multiple times", type=str, required=True)
     parser.add_argument('--zookeeper-use-tls', dest='zk_use_tls', help="Use TLS when connecting to ZooKeeper", type=bool, default=False)
     parser.add_argument('--prometheus-exporter-port', dest='prom_http_port', help="Listen port for Prometheus export", type=int, default=9010)
+    parser.add_argument('--relay-jmx', dest='relay_jmx', help="Relay complete JMX data", type=bool, default=False)
     parser.add_argument('--logfile', dest='logfile', help="Path to optional logfile", type=str)
     parser.add_argument('--loglevel', dest='loglevel', help="Loglevel, default: INFO", type=str, default='INFO')
 
@@ -495,6 +528,7 @@ if __name__ == '__main__':
     zk_use_tls = args.zk_use_tls
     hbase_master = args.hbase_master
     hdfs_namenodes = args.hdfs_namenode
+    relay_complete_jmx = args.relay_jmx
     del locals()['args']
 
     nzk_server = len(zk_server)
@@ -564,6 +598,8 @@ if __name__ == '__main__':
     else:
         logging.info("ZooKeeper: Clusterid: " + str(clusterid[0]))
 
+    jmx = jmx_query(relay_complete_jmx)
+
     while True:
         m = zk.get_znode_data(znode_hbase + "/master")
 
@@ -572,7 +608,8 @@ if __name__ == '__main__':
         else:
             logging.info("ZooKeeper: " + str(m[0]))
 
-        jmx_query().main(hdfs_namenodes)
+        #jmx_query().main(hdfs_namenodes)
+        jmx.main(hdfs_namenodes)
         hbase_exporter().main(hbase_master)
         #prom_zookeeper_num_live.set(nzookeeper_live)
         #prom_zookeeper_num_dead.set(nzk_server - nzookeeper_live)
