@@ -13,8 +13,6 @@
 #
 #  * Ask ZooKeeper directly for active namenode/hbase master
 #
-#  * Add an option to relay all metrics
-#
 #  * Add hdfs/hbase binaries to container
 
 from __future__ import absolute_import
