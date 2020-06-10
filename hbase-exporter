@@ -51,8 +51,6 @@ prom_scrape_interval_s = 10
 
 # Prom vars
 REQUEST_TIME = Summary('request_processing_seconds', 'Time spent processing request')
-prom_hbase_num_regions_in_transition_stale = Gauge('number_of_regions_in_transition_stale', 'Number of stale regions in transition')
-prom_hbase_num_inconsistencies = Gauge('number_of_inconsistencies', 'Number of inconsistencies in HBase')
 prom_hdfs_total = Gauge('hdfs_bytes_total', 'HDFS total bytes')
 prom_hdfs_used = Gauge('hdfs_bytes_used', 'HDFS used bytes')
 prom_hdfs_remaining = Gauge('hdfs_bytes_remaining', 'HDFS remaining bytes')
@@ -63,7 +61,9 @@ prom_hbase_healthy = Gauge('hbase_healthy', 'HBase is up and running, a master i
 prom_hbase_num_regionservers_live = Gauge('hbase_regionservers_live', 'HBase Live Regionservers')
 prom_hbase_num_regionservers_dead = Gauge('hbase_regionservers_dead', 'HBase Dead Regionservers')
 prom_hbase_num_clusterrequests = Gauge('hbase_clusterrequests', 'HBase Clusterrequests')
-prom_hbase_regions_in_transition_stale = Gauge('regions_in_transition_stale', 'Number of stale regions in transition')
+prom_hbase_num_regions_in_transition_stale = Gauge('number_of_regions_in_transition_stale', 'Number of stale regions in transition')
+prom_hbase_num_inconsistencies = Gauge('number_of_inconsistencies', 'Number of inconsistencies in HBase')
+prom_hbase_writeable = Gauge('hbase_is_writeable', 'HBase is writeable')
 prom_zookeeper_num = Gauge('zookeeper_num', 'Known ZooKeeper Servers')
 prom_zookeeper_num_live = Gauge('zookeeper_num_live', 'Live ZooKeeper Servers')
 prom_zookeeper_has_leader = Gauge('zookeeper_has_leader', 'ZooKeeper cluser has a leader')
@@ -113,7 +113,7 @@ class zk():
 
 
     @classmethod
-    def get_znode_data(self, znode):
+    def znode_data(self, znode):
         data = ""
 
         try:
@@ -191,8 +191,8 @@ class jmx_query():
 
     def main(self, hdfs_namenode_hosts):
 
-        hdfs_active_namenode = self.get_active_namenode(hdfs_namenode_hosts)
-        hbase_active_master = hbase_exporter.get_active_master()
+        hdfs_active_namenode = self.active_namenode(hdfs_namenode_hosts)
+        hbase_active_master = hbase_exporter.active_master()
 
         if not hdfs_active_namenode:
             logging.info("Failed to determine active HDFS namenode")
@@ -203,9 +203,11 @@ class jmx_query():
             return False
 
         url = self.get_url('hdfs', hdfs_active_namenode)
-        self.get_jmx_data(url)
+        logging.info("hdfs: Fetching jmx data")
+        self.jmx_data(url)
         url = self.get_url('hbase', hbase_active_master)
-        self.get_jmx_data(url)
+        logging.info("hbase: Fetching jmx data")
+        self.jmx_data(url)
 
 
     def get_url(self, service, hostname):
@@ -222,8 +224,7 @@ class jmx_query():
         return url
 
 
-    def get_jmx_data(self, url):
-        logging.info("Fetching jmx data")
+    def jmx_data(self, url):
         jmx = self.query(url)
 
         if (jmx == False):
@@ -237,7 +238,7 @@ class jmx_query():
         return True
 
 
-    def get_active_namenode(self, hdfs_namenode_hosts):
+    def active_namenode(self, hdfs_namenode_hosts):
 
         if not which(cmd_hdfs_namenodes[0]):
             logging.info("Could not find hdfs executable in PATH")
@@ -279,7 +280,7 @@ class jmx_query():
                 logging.debug(r.stderr.decode("utf-8"))
 
             if "active" in r.stdout.decode("utf-8").lower():
-                logging.info("Active namenode: " + node_address + " (" + node + ")")
+                logging.info("hdfs: Active namenode: " + node_address + " (" + node + ")")
                 return node_address
 
         if has_ha_element:
@@ -357,7 +358,7 @@ class jmx_query():
 class hbase_exporter():
 
     def main(self, hbase_master_hosts):
-        hbase_active_master = self.get_active_master()
+        hbase_active_master = self.active_master()
 
         if not hbase_active_master:
             logging.info("Failed to determine active HBase master")
@@ -365,8 +366,8 @@ class hbase_exporter():
             prom_hbase_healthy.set(0)
             return False
 
-        self.get_stale_regions_in_transition(hbase_active_master)
-        self.hbck_get_inconsistencies()
+        self.stale_regions_in_transition(hbase_active_master)
+        self.hbck_inconsistencies()
         self.hbase_write_test()
         self.check_health()
 
@@ -394,7 +395,7 @@ class hbase_exporter():
 
 
     @staticmethod
-    def get_active_master():
+    def active_master():
 
         if not which(cmd_hbase_active_master[0]):
             logging.info("Could not find hdfs executable in PATH")
@@ -410,12 +411,12 @@ class hbase_exporter():
 
         prom_hbase_up.set(1)
         active_master = r.stdout.decode('utf-8').rstrip()
-        logging.info("Active master: " + active_master)
+        logging.info("hbase: Active master: " + active_master)
 
         return active_master
 
 
-    def get_stale_regions_in_transition(self, hbase_master):
+    def stale_regions_in_transition(self, hbase_master):
         host = hbase_master.rstrip("\n\r")
         port = hbase_master_ui_default_port
         url = 'http://%(host)s:%(port)s/master-status' % locals()
@@ -472,7 +473,7 @@ class hbase_exporter():
             logging.info('Failed to parse HBase Master UI status page')
 
 
-    def hbck_get_inconsistencies(self):
+    def hbck_inconsistencies(self):
 
         re_status = re.compile(r'^Status:\s*(.+?)\s*$')
         re_duplicate = re.compile(r'(.*)ERROR\s\[main\]\sutil\.HBaseFsck\:\sAnother\sinstance\sof\shbck\sis\srunning(.*)$')
@@ -556,6 +557,7 @@ class hbase_exporter():
 
         if p.returncode != 0:
             self.hbase_write_success = 0
+            prom_hbase_is_writeable.set(0)
             return False
 
         self.hbase_write_success = 1
@@ -667,7 +669,7 @@ if __name__ == '__main__':
     else:
         znode_hbase = "/hbase-unsecure"
 
-    clusterid = zk.get_znode_data(znode_hbase + "/hbaseid")
+    clusterid = zk.znode_data(znode_hbase + "/hbaseid")
 
     if not clusterid:
         logging.info("ZooKeeper: Could not read clusterid")
@@ -677,7 +679,7 @@ if __name__ == '__main__':
     jmx = jmx_query(relay_complete_jmx)
 
     while True:
-        m = zk.get_znode_data(znode_hbase + "/master")
+        m = zk.znode_data(znode_hbase + "/master")
         zk.active_servers(zk_server)
 
         if not m:
