@@ -72,6 +72,7 @@ prom_zookeeper_has_leader = Gauge('zookeeper_has_leader', 'ZooKeeper cluser has 
 hdfs_config_file = "/etc/hadoop/conf/hdfs-site.xml"
 cmd_hbase_active_master = ['/usr/hdp/current/hbase-client/bin/hbase-jruby', '/usr/hdp/current/hbase-client/bin/get-active-master.rb']
 cmd_hbase_hbck = ['hbase', 'hbck']
+cmd_hbase_write = ['/tmp/hbase-write.py']
 cmd_hdfs_namenodes = ['hdfs', 'getconf', '-namenodes']
 
 # Use command line arguments to set the following vars
@@ -103,11 +104,13 @@ class zk():
 
         return True
 
+
     def listener(state):
         if state == kz_client.KazooState.CONNECTED:
             logging.info("ZooKeeper: Client connected")
         else:
             logging.info("ZooKeeper: Failed to connect to ZooKeeper")
+
 
     @classmethod
     def get_znode_data(self, znode):
@@ -127,6 +130,7 @@ class zk():
 
         return data
 
+
     def listener(state):
         if state == KazooState.LOST:
             logging.debug("ZooKeeper: Connection lost")
@@ -137,6 +141,7 @@ class zk():
         else:
             logging.debug("ZooKeeper: Connection re-established")
             # Handle being connected/reconnected to Zookeeper
+
 
     def active_servers(address_list):
         zk_has_leader = 0
@@ -362,6 +367,7 @@ class hbase_exporter():
 
         self.get_stale_regions_in_transition(hbase_active_master)
         self.hbck_get_inconsistencies()
+        self.hbase_write_test()
         self.check_health()
 
 
@@ -374,6 +380,10 @@ class hbase_exporter():
             return False
 
         if self.num_regions_in_transition_stale > 0:
+            prom_hbase_healthy.set(0)
+            return False
+
+        if self.hbase_write_success != 0:
             prom_hbase_healthy.set(0)
             return False
 
@@ -488,7 +498,7 @@ class hbase_exporter():
 
             if match:
                 hbck_status = match.group(1)
-                logging.info('hbck status = %s', hbck_status)
+                logging.info('hbase-hbck: hbck status = %s', hbck_status)
                 break
 
         for line in error:
@@ -496,25 +506,25 @@ class hbase_exporter():
 
             if match:
                 hbck_status = match.group(0)
-                logging.info('hbck status = %s', hbck_status)
+                logging.info('hbase-hbck: hbck status = %s', hbck_status)
                 break
 
         if hbck_status is None:
-            logging.info('hbck: Failed to find hbck status result')
+            logging.info('hbase-hbck: Failed to find hbck status result')
         if self.num_inconsistencies is None:
-            logging.info('hbck: Failed to find number of inconsistencies')
+            logging.info('hbase-hbck: Failed to find number of inconsistencies')
             self.num_inconsistencies = -1
 
         if self.num_inconsistencies != None:
             self.num_inconsistencies = int(self.num_inconsistencies)
 
         if not isinstance(self.num_inconsistencies, int):
-            logging.info('hbck: Non-integer detected for the number of inconsistencies')
+            logging.info('hbase-hbck: Non-integer detected for the number of inconsistencies')
             self.num_inconsistencies = -1
             return False
 
         if p.returncode != 0:
-            logging.info("hbck: Failed to run hbck (%d)" % (p.returncode))
+            logging.info("hbase-hbck: Failed to run hbck (%d)" % (p.returncode))
             self.num_inconsistencies = -1
             return False
 
@@ -527,6 +537,29 @@ class hbase_exporter():
                     num_regions_in_transition_stale = next_sibling.get_text().strip()
                     return num_regions_in_transition_stale
         return None
+
+
+    def hbase_write_test(self):
+        hbase_write_env = os.environ.copy()
+        p = Popen(cmd_hbase_write, stdout=PIPE, stderr=PIPE, close_fds=False, env=hbase_write_env)
+        output, error = p.communicate()
+        output = output.decode("utf-8", "strict").splitlines()
+        error = error.decode("utf-8", "strict").splitlines()
+
+        logging.info("hbase-write: return code: %d", p.returncode)
+
+        for line in output:
+            logging.info("hbase-write: %s", line)
+
+        for line in error:
+            logging.info("hbase-write: %s", line)
+
+        if p.returncode != 0:
+            self.hbase_write_success = 0
+            return False
+
+        self.hbase_write_success = 1
+        return True
 
 
 def which(program):
