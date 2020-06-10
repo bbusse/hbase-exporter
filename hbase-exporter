@@ -72,7 +72,7 @@ prom_zookeeper_has_leader = Gauge('zookeeper_has_leader', 'ZooKeeper cluser has 
 hdfs_config_file = "/etc/hadoop/conf/hdfs-site.xml"
 cmd_hbase_active_master = ['/usr/hdp/current/hbase-client/bin/hbase-jruby', '/usr/hdp/current/hbase-client/bin/get-active-master.rb']
 cmd_hbase_hbck = ['hbase', 'hbck']
-cmd_hbase_write = ['/tmp/hbase-write.py']
+cmd_hbase_write = ['hbase-write.py']
 cmd_hdfs_namenodes = ['hdfs', 'getconf', '-namenodes']
 
 # Use command line arguments to set the following vars
