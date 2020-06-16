@@ -11,8 +11,6 @@
 #    we already have it in the journal -
 #    at least when not running in a container
 #
-#  * Ask ZooKeeper directly for active namenode/hbase master
-#
 #  * Add hdfs/hbase binaries to container
 
 from __future__ import absolute_import
@@ -23,6 +21,7 @@ from __future__ import unicode_literals
 import argparse
 from bs4 import BeautifulSoup
 from flatten_json import flatten
+from google.protobuf import text_format
 import io
 import json
 from kazoo.client import KazooClient
@@ -34,12 +33,14 @@ from prometheus_client import Gauge
 import random
 import re
 import requests
+from struct import unpack
 import subprocess
 from subprocess import Popen,PIPE
 import sys
 import time
 import traceback
 import xml.etree.ElementTree as et
+from ZooKeeper_pb2 import Master as pbMaster
 
 tmp_path = '/tmp/'
 logpath = tmp_path
@@ -192,7 +193,7 @@ class jmx_query():
     def main(self, hdfs_namenode_hosts):
 
         hdfs_active_namenode = self.active_namenode(hdfs_namenode_hosts)
-        hbase_active_master = hbase_exporter.active_master()
+        hbase_active_master = hbase_exporter.zk_active_master()
 
         if not hdfs_active_namenode:
             logging.info("Failed to determine active HDFS namenode")
@@ -358,7 +359,7 @@ class jmx_query():
 class hbase_exporter():
 
     def main(self, hbase_master_hosts):
-        hbase_active_master = self.active_master()
+        hbase_active_master = self.zk_active_master()
 
         if not hbase_active_master:
             logging.info("Failed to determine active HBase master")
@@ -394,8 +395,31 @@ class hbase_exporter():
         return True
 
 
+    #The prefered method to get the active
+    # HBase Master by directly looking into ZooKeeper
     @staticmethod
-    def active_master():
+    def zk_active_master():
+
+        msg = zk.znode_data(znode_hbase + "/master")
+
+        if not msg:
+            logging.info("ZooKeeper: Failed to get HBase master")
+            return False
+        else:
+            msg = msg[0]
+            first_byte, meta_length = unpack(">cI", msg[:5])
+            msg = msg[meta_length + 9:]
+            master = pbMaster()
+            master.ParseFromString(msg)
+            logging.info("zk: %s",  master.master.host_name)
+
+        return master.master.host_name
+
+
+    # An alternative way to get the HBase Master
+    # without directly looking into ZooKeeper
+    @staticmethod
+    def jruby_active_master():
 
         if not which(cmd_hbase_active_master[0]):
             logging.info("Could not find hdfs executable in PATH")
@@ -411,7 +435,6 @@ class hbase_exporter():
 
         prom_hbase_up.set(1)
         active_master = r.stdout.decode('utf-8').rstrip()
-        logging.info("hbase: Active master: " + active_master)
 
         return active_master
 
@@ -655,7 +678,6 @@ if __name__ == '__main__':
     nruns = 0
 
     # Start a ZooKeeper client
-    # for each configured ZooKeeper server
     r = False
     nzk = 0
 
@@ -679,13 +701,11 @@ if __name__ == '__main__':
     jmx = jmx_query(relay_complete_jmx)
 
     while True:
-        m = zk.znode_data(znode_hbase + "/master")
+        hbase_active_master = hbase_exporter.zk_active_master()
+        logging.info("hbase: Active master: " + hbase_active_master)
+
         zk.active_servers(zk_server)
 
-        if not m:
-            logging.info("ZooKeeper: Failed to get HBase master")
-        else:
-            logging.info("ZooKeeper: " + str(m[0]))
 
         #jmx_query().main(hdfs_namenodes)
         jmx.main(hdfs_namenodes)
