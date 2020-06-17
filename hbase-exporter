@@ -7,6 +7,8 @@
 #
 # TODO:
 #
+#  * Natively write to hbase instead of writing via Thrift
+#
 #  * Remove timestamp from log msg or make them optional,
 #    we already have it in the journal -
 #    at least when not running in a container
@@ -22,7 +24,6 @@ import argparse
 from bs4 import BeautifulSoup
 from flatten_json import flatten
 import datetime as dt
-from google.protobuf import text_format
 import io
 import json
 from kazoo.client import KazooClient
@@ -719,7 +720,7 @@ if __name__ == '__main__':
             run_hbck = True
 
         hbase_active_master = hbase_exporter.zk_active_master()
-        logging.info("hbase: Active master: " + hbase_active_master)
+        logging.debug("hbase: Active master: {0}".format(hbase_active_master))
 
         zk.active_servers(zk_server)
 
