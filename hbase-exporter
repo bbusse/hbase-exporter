@@ -83,6 +83,8 @@ namenode_use_tls = False
 hbase_master_ui_default_port = 16010
 hdfs_namenode_default_port = 50070
 cluster_is_kerberized = False
+hbase_hbck_remove_lockfile = True
+
 
 class zk():
     zk_client = ""
@@ -386,25 +388,20 @@ class hbase_exporter():
             logging.info("hbase: Write test failed! Is Thrift up and running?")
             prom_hbase_writeable.set(0)
 
-        self.check_health(run_hbck)
+        hbase_health = self.check_health(run_hbck)
+        prom_hbase_healthy.set(hbase_health)
 
 
     def check_health(self, run_hbck):
         # Only check for inconsistencies if we actually ran hbck
         if run_hbck and self.num_inconsistencies > 0:
-            prom_hbase_healthy.set(0)
             return False
 
         if self.num_regions_in_transition_stale > 0:
-            prom_hbase_healthy.set(0)
             return False
 
         if self.hbase_write_success != 0:
-            prom_hbase_healthy.set(0)
             return False
-
-        prom_hbase_up.set(1)
-        prom_hbase_healthy.set(1)
 
         return True
 
@@ -446,7 +443,6 @@ class hbase_exporter():
         if 'Master not running' in r.stdout.decode('utf-8'):
             return False
 
-        prom_hbase_up.set(1)
         active_master = r.stdout.decode('utf-8').rstrip()
 
         return active_master
@@ -474,33 +470,35 @@ class hbase_exporter():
         num_regions_in_transition_stale = self.hbaseui_parse_output(req.content)
 
         if num_regions_in_transition_stale is None:
-            logging.debug('Parse error - failed to find number of stale regions in transition')
+            logging.debug('hbase-ui: Parse error - failed to find number of stale regions in transition')
 
         if not isinstance(num_regions_in_transition_stale, int):
-            logging.debug('Parse error - got non-integer for stale regions in transition')
+            logging.debug('hbase-ui: Parse error - got non-integer for stale regions in transition')
 
         self.num_regions_in_transition_stale = num_regions_in_transition_stale
 
 
     def hbaseui_parse_output(self, content):
         soup = BeautifulSoup(content, 'html.parser')
-        num_regions_in_transition_stale = -1
+        num_regions_in_transition_stale = 0
         try:
             headings = soup.findAll('h2')
             for heading in headings:
+                # The section only exists if there are stale regions in transition
                 if heading.get_text() == "Regions in Transition":
-                    logging.debug('Found Regions in Transition section header')
-                    logging.debug('Looking for table')
+                    logging.info('hbase-ui: Found Regions in Transition section header')
+                    logging.info('hbase-ui: Looking for table')
                     table = heading.find_next('table')
                     num_regions_in_transition_stale = self.hbaseui_parse_table(table)
                     if not isinstance(num_regions_in_transition_stale, int):
-                        logging.debug('Got non-integer \'{0}\' for stale regions in transition when parsing HBase Master UI'\
+                        logging.info('hbase-ui: Got non-integer \'{0}\' for stale regions in transition when parsing HBase Master UI'\
                               .format(num_regions_in_transition_stale))
 
-            return num_regions_in_transition_stale
-
         except (AttributeError, TypeError):
-            logging.info('Failed to parse HBase Master UI status page')
+            logging.info('hbase-ui: Failed to parse HBase Master UI status page')
+            return -1
+
+        return num_regions_in_transition_stale
 
 
     def hbck_inconsistencies(self):
@@ -538,6 +536,13 @@ class hbase_exporter():
             if match:
                 hbck_status = match.group(0)
                 logging.info('hbase-hbck: hbck status = %s', hbck_status)
+                hdfs_lock_uri = re.findall('hdfs://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', hbck_status)
+                for uri in hdfs_lock_uri:
+                   logging.info('hbase-hbck: Locked by lockfile: {0}'.format(hdfs_lock_uri[0]))
+                   if hbase_hbck_remove_lockfile:
+                        hdfs_remove_file(uri)
+                   else:
+                        logging.info('hbase-hbck: Please remove lockfile manually if no hbck is running')
                 break
 
         if hbck_status is None:
@@ -591,6 +596,20 @@ class hbase_exporter():
 
         self.hbase_write_success = 1
         return True
+
+
+def hdfs_remove_file(hdfs_uri):
+    p = Popen(['hadoop', 'fs', '-rm', hdfs_uri], stdout=PIPE, stderr=PIPE, close_fds=False)
+    output, error = p.communicate()
+    output = output.splitlines()
+    error = error.splitlines()
+    for line in output:
+        logging.info("hdfs-rm: %s", line)
+
+    for line in error:
+        logging.info("hdfs-rm: %s", line)
+
+    return error
 
 
 def which(program):
@@ -727,7 +746,7 @@ if __name__ == '__main__':
         jmx.main(hdfs_namenodes)
 
         hbase_hbck_time_s = int((dt.datetime.now() - hbase_hbck_timer_s).total_seconds())
-        logging.info("hbase-hbck: Timer: {0} seconds".format(hbase_hbck_time_s))
+        logging.debug("hbase-hbck: Timer: {0} seconds".format(hbase_hbck_time_s))
 
         # Do an hbck on the first run and then whenever the interval
         # between to consecutive runs in seconds is higher than the configured interval
