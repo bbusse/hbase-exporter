@@ -21,6 +21,7 @@ from __future__ import unicode_literals
 import argparse
 from bs4 import BeautifulSoup
 from flatten_json import flatten
+import datetime as dt
 from google.protobuf import text_format
 import io
 import json
@@ -47,8 +48,6 @@ logpath = tmp_path
 
 # ZooKeeper
 zk_reconnect_interval_s = 30
-
-prom_scrape_interval_s = 10
 
 # Prom vars
 REQUEST_TIME = Summary('request_processing_seconds', 'Time spent processing request')
@@ -83,7 +82,6 @@ namenode_use_tls = False
 hbase_master_ui_default_port = 16010
 hdfs_namenode_default_port = 50070
 cluster_is_kerberized = False
-
 
 class zk():
     zk_client = ""
@@ -358,26 +356,41 @@ class jmx_query():
 
 class hbase_exporter():
 
-    def main(self, hbase_master_hosts):
+    def main(self, hbase_master_hosts, run_hbck):
         hbase_active_master = self.zk_active_master()
 
         if not hbase_active_master:
-            logging.info("Failed to determine active HBase master")
+            logging.info("hbase: Failed to determine active HBase master")
             prom_hbase_up.set(0)
             prom_hbase_healthy.set(0)
             return False
 
         self.stale_regions_in_transition(hbase_active_master)
-        self.hbck_inconsistencies()
+        msg = 'hbase: {0} stale regions in transition '\
+                   .format(self.num_regions_in_transition_stale)
+
+        logging.info(msg)
+        prom_hbase_num_regions_in_transition_stale.set(self.num_regions_in_transition_stale)
+
+        if run_hbck:
+            self.hbck_inconsistencies()
+            logging.info("hbase-hbck: Number of inconsistencies: %d", self.num_inconsistencies)
+            prom_hbase_num_inconsistencies.set(self.num_inconsistencies)
+
         self.hbase_write_test()
-        self.check_health()
+        if self.hbase_write_success:
+            logging.info("hbase: Write test succeeded")
+            prom_hbase_writeable.set(1)
+        else:
+            logging.info("hbase: Write test failed! Is Thrift up and running?")
+            prom_hbase_writeable.set(0)
+
+        self.check_health(run_hbck)
 
 
-    def check_health(self):
-        if self.num_inconsistencies == -1:
-            prom_hbase_healthy.set(0)
-            return False
-        elif self.num_inconsistencies > 0:
+    def check_health(self, run_hbck):
+        # Only check for inconsistencies if we actually ran hbck
+        if run_hbck and self.num_inconsistencies > 0:
             prom_hbase_healthy.set(0)
             return False
 
@@ -395,7 +408,7 @@ class hbase_exporter():
         return True
 
 
-    #The prefered method to get the active
+    # The prefered method to get the active
     # HBase Master by directly looking into ZooKeeper
     @staticmethod
     def zk_active_master():
@@ -411,7 +424,6 @@ class hbase_exporter():
             msg = msg[meta_length + 9:]
             master = pbMaster()
             master.ParseFromString(msg)
-            logging.info("zk: %s",  master.master.host_name)
 
         return master.master.host_name
 
@@ -466,18 +478,12 @@ class hbase_exporter():
         if not isinstance(num_regions_in_transition_stale, int):
             logging.debug('Parse error - got non-integer for stale regions in transition')
 
-        msg = '{0} stale regions in transition '\
-                   .format(num_regions_in_transition_stale)
-
-        prom_hbase_num_regions_in_transition_stale.set(num_regions_in_transition_stale)
-        logging.info(msg)
-
         self.num_regions_in_transition_stale = num_regions_in_transition_stale
 
 
     def hbaseui_parse_output(self, content):
         soup = BeautifulSoup(content, 'html.parser')
-        num_regions_in_transition_stale = 0
+        num_regions_in_transition_stale = -1
         try:
             headings = soup.findAll('h2')
             for heading in headings:
@@ -504,7 +510,7 @@ class hbase_exporter():
         self.num_inconsistencies = None
         hbck_status = None
 
-        logging.info("HBase: Running hbck consistency check")
+        logging.info("hbase: Running hbck consistency check")
         p = Popen(['hbase', 'hbck'], stdout=PIPE, stderr=PIPE, close_fds=False)
         output, error = p.communicate()
         output = output.splitlines()
@@ -515,7 +521,7 @@ class hbase_exporter():
 
             if match:
                 self.num_inconsistencies = match.group(1)
-                logging.info('Number of inconsistencies:  %s', self.num_inconsistencies)
+                logging.info('hbase-hbck: Number of inconsistencies:  %s', self.num_inconsistencies)
                 continue
 
             match = re_status.match(line.decode('utf-8'))
@@ -580,7 +586,6 @@ class hbase_exporter():
 
         if p.returncode != 0:
             self.hbase_write_success = 0
-            prom_hbase_is_writeable.set(0)
             return False
 
         self.hbase_write_success = 1
@@ -616,7 +621,9 @@ if __name__ == '__main__':
     parser.add_argument('--hdfs-namenode', dest='hdfs_namenode', action='append', help="HDFS namenode address, can be specified multiple times", type=str, default=hdfs_namenode_default_address)
     parser.add_argument('--zookeeper-server-address', dest='zk_server', action='append', help="ZooKeeper server address, can be specified multiple times", type=str, required=True)
     parser.add_argument('--zookeeper-use-tls', dest='zk_use_tls', help="Use TLS when connecting to ZooKeeper", type=bool, default=False)
-    parser.add_argument('--prometheus-exporter-port', dest='prom_http_port', help="Listen port for Prometheus export", type=int, default=9010)
+    parser.add_argument('--exporter-port', dest='prom_http_port', help="Listen port for Prometheus export", type=int, default=9010)
+    parser.add_argument('--export-refresh-rate', dest='prom_export_interval_s', help="Time between metrics are gathered in seconds", type=int, default=60)
+    parser.add_argument('--hbck-refresh-rate', dest='hbase_hbck_interval_s', help="Minimum time between two consecutive hbck runs in seconds", type=int, default=600)
     parser.add_argument('--relay-jmx', dest='relay_jmx', help="Relay complete JMX data", type=bool, default=False)
     parser.add_argument('--logfile', dest='logfile', help="Path to optional logfile", type=str)
     parser.add_argument('--loglevel', dest='loglevel', help="Loglevel, default: INFO", type=str, default='INFO')
@@ -630,6 +637,8 @@ if __name__ == '__main__':
     hbase_master = args.hbase_master
     hdfs_namenodes = args.hdfs_namenode
     relay_complete_jmx = args.relay_jmx
+    prom_export_interval_s = args.prom_export_interval_s
+    hbase_hbck_interval_s = args.hbase_hbck_interval_s
     del locals()['args']
 
     nzk_server = len(zk_server)
@@ -701,20 +710,45 @@ if __name__ == '__main__':
     jmx = jmx_query(relay_complete_jmx)
 
     while True:
+        nruns += 1
+        run_hbck = False
+
+        # Set the initial hbck timer
+        if nruns == 1:
+            hbase_hbck_timer_s = dt.datetime.now()
+            run_hbck = True
+
         hbase_active_master = hbase_exporter.zk_active_master()
         logging.info("hbase: Active master: " + hbase_active_master)
 
         zk.active_servers(zk_server)
 
-
-        #jmx_query().main(hdfs_namenodes)
         jmx.main(hdfs_namenodes)
-        hbase_exporter().main(hbase_master)
-        #prom_zookeeper_num_live.set(nzookeeper_live)
 
-        nruns += 1
+        hbase_hbck_time_s = int((dt.datetime.now() - hbase_hbck_timer_s).total_seconds())
+        logging.info("hbase-hbck: Timer: {0} seconds".format(hbase_hbck_time_s))
+
+        # Do an hbck on the first run and then whenever the interval
+        # between to consecutive runs in seconds is higher than the configured interval
+        if hbase_hbck_interval_s < hbase_hbck_time_s or run_hbck:
+            run_hbck = True
+            # Set a new hbck timer
+            hbase_hbck_timer_s = dt.datetime.now()
+        else:
+            hbck_t_next_s = hbase_hbck_interval_s - hbase_hbck_time_s
+            if hbck_t_next_s < prom_export_interval_s:
+                # Minimum wait time is our export refresh rate -
+                # the time how long we sleep between two runs
+                hbck_t_next_s = prom_export_interval_s
+            logging.info("hbase-hbck: Skipping. hbck is only run every {0} seconds. Next run in {1} seconds"
+                         .format(hbase_hbck_interval_s, hbck_t_next_s))
+
+        hbase_exporter().main(hbase_master, run_hbck)
+        #prom_zookeeper_num_live.set(nzookeeper_live)
 
         if nruns == 1:
             logging.info("Started HBase exporter")
 
-        time.sleep(prom_scrape_interval_s)
+        logging.info("Sleeping for {0} seconds ".format(prom_export_interval_s))
+
+        time.sleep(prom_export_interval_s)
