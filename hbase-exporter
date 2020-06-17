@@ -42,7 +42,7 @@ import sys
 import time
 import traceback
 import xml.etree.ElementTree as et
-from ZooKeeper_pb2 import Master as pbMaster
+from protobuf.ZooKeeper_pb2 import Master as pbMaster
 
 tmp_path = '/tmp/'
 logpath = tmp_path
