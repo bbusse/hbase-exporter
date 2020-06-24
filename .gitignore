@@ -1,2 +1,5 @@
 hbase-exporter.log
-protobuf/*
+protobuf/*pb2.py
+protobuf/__pycache__/
+protobuf/client/
+protobuf/server/
