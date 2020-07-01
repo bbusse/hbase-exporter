@@ -4,6 +4,13 @@ After=network-online.target
 
 [Service]
 User=hdfs
-ExecStart=/usr/local/bin/hbase-exporter
+EnvironmentFile=/etc/env-hbase-exporter
+ExecStart=/usr/local/bin/hbase-exporter --zookeeper-server-address=${ZK_SERVER_1} \
+                                        --zookeeper-server-address=${ZK_SERVER_2} \
+                                        --zookeeper-server-address=${ZK_SERVER_3} \
+                                        --zookeeper-server-address=${ZK_SERVER_4} \
+                                        --zookeeper-server-address=${ZK_SERVER_5} \
+                                        --export-refresh-rate=${EXPORT_REFRESH_RATE} \
+                                        --hbck-refresh-rate=${HBCK_REFRESH_RATE}
 Restart=always
 RestartSec=30s
