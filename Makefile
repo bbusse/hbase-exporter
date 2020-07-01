@@ -1,5 +1,5 @@
 hbase_tmp_path := /tmp/hbase
-bindings_path := $(CURDIR)/protobuf
+bindings_path := $(CURDIR)/hbase-protobuf-python
 
 all:
 	@echo Generating Python Protobuf bindings from HBase source
