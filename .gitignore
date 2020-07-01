@@ -1,5 +1,5 @@
 hbase-exporter.log
-protobuf/*pb2.py
-protobuf/__pycache__/
-protobuf/client/
-protobuf/server/
+hbase-protobuf-python/*pb2.py
+hbase-protobuf-python/__pycache__/
+hbase-protobuf-python/client/
+hbase-protobuf-python/server/
