@@ -91,10 +91,10 @@ optional arguments:
 ### Deploy
 Ansible can be used to build and deploy the hbase-exporter
 ```
-ansible-playbook -v -i inventory/env.yml deploy-hbase-exporter.yml -l host
+$ ansible-playbook -v -i inventory/env.yml deploy-hbase-exporter.yml -l host
 ````
 
-### DEBUG
+### Debug
 To see the log
 ```
 $ sudo journalctl -afn100 -uhbase-exporter
