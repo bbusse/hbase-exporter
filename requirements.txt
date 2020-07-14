@@ -5,3 +5,4 @@ kazoo >= 2.6.0
 requests >= 2.21.0
 protobuf >= 3.12.2
 prometheus_client >= 0.5.0
+git+git://github.com/Flipboard/PyBase#egg=pybase
