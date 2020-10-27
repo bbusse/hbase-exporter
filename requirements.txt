@@ -1,8 +1,7 @@
 beautifulsoup4 >= 4.7.1
 flatten_json >= 0.1.6
-happybase >= 1.2.0
 kazoo >= 2.6.0
 requests >= 2.21.0
 protobuf >= 3.12.2
 prometheus_client >= 0.5.0
-git+git://github.com/Flipboard/PyBase#egg=pybase
+git+git://github.com/bbusse/PyBase#egg=pybase
