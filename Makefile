@@ -6,15 +6,15 @@ all:
 	-mkdir $(bindings_path)
 	-git clone --depth 1 https://github.com/apache/hbase $(hbase_tmp_path)
 	cd $(hbase_tmp_path)/hbase-protocol-shaded/src/main/protobuf; \
-	protoc -I=/usr/local/include/ --proto_path=. --python_out=$(bindings_path) *
+	protoc -I=/usr/local/include/ --proto_path=. --python_out=$(bindings_path) *.proto
 	cd $(hbase_tmp_path)/hbase-protocol-shaded/src/main/protobuf; \
-	protoc -I=/usr/local/include/ --proto_path=. --python_out=$(bindings_path) client/*
+	protoc -I=/usr/local/include/ --proto_path=. --python_out=$(bindings_path) client/*.proto
 	cd $(hbase_tmp_path)/hbase-protocol-shaded/src/main/protobuf; \
-	protoc -I=/usr/local/include/ --proto_path=. --python_out=$(bindings_path) server/*
+	protoc -I=/usr/local/include/ --proto_path=. --python_out=$(bindings_path) server/*.proto
 	cd $(hbase_tmp_path)/hbase-protocol-shaded/src/main/protobuf; \
-	protoc -I=/usr/local/include/ --proto_path=. --python_out=$(bindings_path) server/io/*
+	protoc -I=/usr/local/include/ --proto_path=. --python_out=$(bindings_path) server/io/*.proto
 	cd $(hbase_tmp_path)/hbase-protocol-shaded/src/main/protobuf; \
-	protoc -I=/usr/local/include/ --proto_path=. --python_out=$(bindings_path) server/zookeeper/*
+	protoc -I=/usr/local/include/ --proto_path=. --python_out=$(bindings_path) server/zookeeper/*.proto
 
 
 clean:
