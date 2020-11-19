@@ -599,7 +599,7 @@ class hbase_exporter():
 
 
     def hbase_read_write_test(self, zk_server):
-        table = os.environ["HBASE_TABLE"]
+        table = os.environ['HBASE_TABLE']
         key = "0x42devoops".encode('utf-8')
         pybase_client = pybase.NewClient(zk_server)
         cf = "t".encode('utf-8')

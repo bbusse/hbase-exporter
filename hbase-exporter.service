@@ -4,7 +4,7 @@ After=network-online.target
 
 [Service]
 User=hdfs
-EnvironmentFile=/etc/env-hbase-exporter
+EnvironmentFile=/etc/systemd-env-hbase-exporter
 ExecStart=/usr/local/bin/hbase-exporter --zookeeper-server-address=${ZOOKEEPER_SERVER_1} \
                                         --zookeeper-server-address=${ZOOKEEPER_SERVER_2} \
                                         --zookeeper-server-address=${ZOOKEEPER_SERVER_3} \
