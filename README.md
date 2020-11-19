@@ -16,10 +16,10 @@ Marking Hbase unhealthy requires one of the following conditions to be true
 - A ZooKeeper leader can not be determined
 
 
-### Dependencies
+### Build/Install Dependencies
 For python module requirements see requirements.txt
 ```sh
-$ sudo dnf/pkg install python36
+$ sudo dnf/pkg install python3
 ```
 
 As the user executing the exporter (e.g. hdfs):
@@ -35,10 +35,15 @@ Install the protobuf compiler
 $ sudo dnf/pkg install protobuf-c protobuf-devel
 ```
 
-### Build
+#### Build the protobuf bindings
 To generate the necessary HBase Python Protobuf bindings, run make
 ```
 $ make
+```
+
+#### Install the protobuf bindings
+```
+$ cp -R hbase-protobuf-python /usr/local/lib
 ```
 
 ### Run
