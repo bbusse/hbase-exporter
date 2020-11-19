@@ -22,9 +22,10 @@ For python module requirements see requirements.txt
 $ sudo dnf/pkg install python36
 ```
 
-As the user executing the exporter:
+As the user executing the exporter (e.g. hdfs):
 ```sh
-$ pip3[.6] install --user -r requirements.txt
+$ sudo su - hdfs
+$ pip3 install --user -r requirements.txt
 ```
 
 The protobuf compiler is necessary to build the required bindings for Python
@@ -50,6 +51,7 @@ $ hbase-exporter --zookeeper-server-address=zk-1.acme.internal
                  --export-refresh-rate=60
                  --hbck-refresh-rate=1200
 ```
+or use the systemd-unit and configure the zookeeper servers and refresh rates via the supplied environment file
 
 Run 'hbase-exporter --help' for all arguments
 ```
@@ -99,10 +101,3 @@ To see the log
 ```
 $ sudo journalctl -afn100 -uhbase-exporter
 ```
-
-## Issues
-Import paths do not work in generated protobufs when used from a subdir<br>
-https://github.com/protocolbuffers/protobuf/issues/1491<br>
-The solution used here is mentioned in the comments:<br>
-https://github.com/protocolbuffers/protobuf/issues/1491#issuecomment-547504972<br>
-Unfortunately querying the active namenode requires superuser privileges
