@@ -50,11 +50,11 @@ $ cp -R hbase-protobuf-python /usr/local/lib
 The exporter needs to know about the ZooKeeper servers to connect to, so start
 the exporter with e.g.
 ```
-$ hbase-exporter --zookeeper-server-address=zk-1.acme.internal
-                 --zookeeper-server-address=zk-2.acme.internal
-                 --zookeeper-server-address=zk-3.acme.internal
-                 --export-refresh-rate=60
-                 --hbck-refresh-rate=1200
+$ PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION="python" hbase-exporter --zookeeper-server-address=zk-1.acme.internal
+                                                                 --zookeeper-server-address=zk-2.acme.internal
+                                                                 --zookeeper-server-address=zk-3.acme.internal
+                                                                 --export-refresh-rate=60
+                                                                 --hbck-refresh-rate=1200
 ```
 or use the systemd-unit and configure the zookeeper servers and refresh rates via the supplied environment file
 
