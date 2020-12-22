@@ -32,7 +32,14 @@ The protobuf compiler is necessary to build the required bindings for Python
 
 Install the protobuf compiler
 ```
-$ sudo dnf/pkg install protobuf-c protobuf-devel
+# FreeBSD
+$ sudo pkg install protobuf-c
+
+# Fedora / RHEL / CentOS
+$ sudo dnf install protobuf-c protobuf-devel
+
+# Debian / Ubuntu
+$ sudo apt install protobuf-compiler libprotobuf-dev
 ```
 
 #### Build the protobuf bindings
