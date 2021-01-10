@@ -1,4 +1,5 @@
 beautifulsoup4 >= 4.7.1
+configargparse >= 1.2.3
 flatten_json >= 0.1.6
 kazoo >= 2.6.0
 requests >= 2.21.0

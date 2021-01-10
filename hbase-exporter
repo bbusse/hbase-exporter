@@ -18,7 +18,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import argparse
+import configargparse
 from bs4 import BeautifulSoup
 from collections import defaultdict
 from flatten_json import flatten
@@ -679,7 +679,7 @@ if __name__ == '__main__':
     hbase_master_default_address = 'localhost:' + str(hbase_master_ui_default_port)
     hdfs_namenode_default_address = 'localhost:' + str(hdfs_namenode_default_port)
 
-    parser = argparse.ArgumentParser( description="")
+    parser = configargparse.ArgParser( description="")
     parser.add_argument('--hbase-master', dest='hbase_master', action='append', help="HBase master address, can be specified multiple times", type=str, default=hbase_master_default_address)
     parser.add_argument('--hdfs-namenode', dest='hdfs_namenode', action='append', help="HDFS namenode address, can be specified multiple times", type=str, default=hdfs_namenode_default_address)
     parser.add_argument('--zookeeper-server-address', dest='zk_server', action='append', help="ZooKeeper server address, can be specified multiple times", type=str, required=True)
