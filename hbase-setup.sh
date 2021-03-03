@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -xueo pipefail
+set -ueo pipefail
 
 HBASE_VERSION="2.4.1"
 HBASE_FILE="hbase-${HBASE_VERSION}-bin.tar.gz"
