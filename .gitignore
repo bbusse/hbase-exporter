@@ -5,3 +5,4 @@ hbase-protobuf-python/client/
 hbase-protobuf-python/server/
 bash_unit
 hbase-?.?.?/
+hbase-?.?.?-bin.tar.gz
