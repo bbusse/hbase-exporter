@@ -16,6 +16,10 @@ all:
 	cd $(hbase_tmp_path)/hbase-protocol-shaded/src/main/protobuf; \
 	protoc -I=/usr/local/include/ --proto_path=. --python_out=$(bindings_path) server/zookeeper/*.proto
 
+test:
+	./hbase-setup.sh
+	./bash_unit
+	./bash_unit tests/test_hbase_up.sh
 
 clean:
 	rm -rf $(hbase_tmp_path)
