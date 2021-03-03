@@ -71,7 +71,7 @@ prom_hbase_readable = Gauge('hbase_is_readable', 'HBase is readable')
 prom_hbase_writeable = Gauge('hbase_is_writeable', 'HBase is writeable')
 prom_zookeeper_num = Gauge('zookeeper_num', 'Known ZooKeeper Servers')
 prom_zookeeper_num_live = Gauge('zookeeper_num_live', 'Live ZooKeeper Servers')
-prom_zookeeper_has_leader = Gauge('zookeeper_has_leader', 'ZooKeeper cluser has a leader')
+prom_zookeeper_has_leader = Gauge('zookeeper_has_leader', 'ZooKeeper cluster has a leader')
 
 # HDFS/HBase
 hdfs_config_file = "/etc/hadoop/conf/hdfs-site.xml"
