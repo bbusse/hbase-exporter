@@ -24,16 +24,19 @@ download() {
     if [ -f "$HBASE_FILE" ]; then
         CKSUM="$(sha512 -q ${HBASE_FILE})"
         if [ "$CKSUM" = "$HBASE_FILE_CKSUM" ]; then
-            echo "${1} exists."
+            printf "HBase archive exists\n"
         fi
     else
+        printf "Downloading ${1}\n"
         curl -LO ${1}
     fi
 
+    printf "Extracting archive\n"
     tar xfz ${HBASE_FILE}
 }
 
 create_config() {
+    printf "Writing config\n"
     cat <<EOF > $1
 <?xml version="1.0"?>
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
