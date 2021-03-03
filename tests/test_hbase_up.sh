@@ -7,8 +7,17 @@ ZK_PORT=2181
 HBASE_TIME_STARTUP=8
 HBASE_VERSION="2.4.1"
 
+
+setup_suite() {
+    export JAVA_HOME=${JAVA_HOME:-"/usr/local"}
+    PWD=$(pwd)
+    cd ../
+    ./hbase-setup.sh
+    cd $PWD
+}
+
 test_run_hbase() {
-    cd "../hbase-${HBASE_VERSION}"
+    cd "hbase-${HBASE_VERSION}"
     ./bin/hbase-daemon.sh --config conf start $1
     sleep ${HBASE_TIME_STARTUP}
 }
@@ -22,5 +31,3 @@ test_hbase_zk_running() {
 "ruok"
 END
 }
-
-export JAVA_HOME=${JAVA_HOME:-"/usr/local"}

@@ -17,9 +17,10 @@ all:
 	protoc -I=/usr/local/include/ --proto_path=. --python_out=$(bindings_path) server/zookeeper/*.proto
 
 test:
-	./hbase-setup.sh
+	./tests/install_bash_unit.sh
 	./bash_unit
 	./bash_unit tests/test_hbase_up.sh
+	./bash_unit tests/test_hbase_exporter_up.sh
 
 clean:
 	rm -rf $(hbase_tmp_path)
