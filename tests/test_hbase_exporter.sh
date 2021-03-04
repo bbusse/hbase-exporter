@@ -1,33 +1,56 @@
 #!/usr/bin/env bash
 
 HBASE_HOST="127.0.0.1"
-HBASE_PORT=16200
+HBASE_PORT=16020
 ZK_HOST="$HBASE_HOST"
 ZK_PORT=2181
-HBASE_TIME_STARTUP=8
+HBASE_TIME_STARTUP=15
+HBASE_EXPORTER_TIME_STARTUP=8
 HBASE_VERSION="2.4.1"
-
 
 setup_suite() {
     export JAVA_HOME=${JAVA_HOME:-"/usr/local"}
-    PWD=$(pwd)
-    cd ../
-    ./hbase-setup.sh
-    cd $PWD
-}
 
-test_run_hbase() {
-    cd "hbase-${HBASE_VERSION}"
-    ./bin/hbase-daemon.sh --config conf start $1
+    # Setup HBase
+    ./hbase-setup.sh
+
+    # Run HBase
+    cd hbase
+    printf "Starting HBase in pseudo-distributed mode\n"
+    ./bin/hbase-daemon.sh --config conf start master
     sleep ${HBASE_TIME_STARTUP}
+
+    # Run exporter
+    cd ../
+    printf "Starting hbase-exporter\n"
+    #./hbase-exporter --zookeeper-server ${ZK_SERVER:-"127.0.0.1:2181"} 2>&1 > /dev/null &
+    ../hbase-exporter --zookeeper-server ${ZK_SERVER:-"127.0.0.1:2181"} --hbase-pseudo-distributed=True &
+    PID=$!
+    sleep $HBASE_EXPORTER_TIME_STARTUP
 }
 
 test_hbase_running() {
-    nc -znu -w1 ${1:-"127.0.0.1"} ${2:-"16200"}
+    nc -n -w1 ${1:-"127.0.0.1"} ${2:-"16200"}
 }
 
 test_hbase_zk_running() {
-    nc -znu -w1 ${1:-"127.0.0.1"} ${2:-"2181"} <<END
+    r=`nc -n -w1 ${1:-"127.0.0.1"} ${2:-"2181"} <<END
 "ruok"
 END
+`
+    printf "$r"
+}
+
+test_hbase_exporter_up() {
+    nc -nu -w1 ${1:-"127.0.0.1"} ${2:-"9010"} 2>&1 > /dev/null &
+    curl -s http://127.0.0.1:9010 > /dev/null
+}
+
+test_hbase_exporter_export_zk_live() {
+    r=$(curl -s http://127.0.0.1:9010 | grep '^zookeeper_num_live' | cut -d " " -f2)
+    assert_not_equals "0.0" "$r" "Zookeeper not live"
+}
+
+teardown_suite() {
+    kill $PID
 }

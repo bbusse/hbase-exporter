@@ -19,8 +19,7 @@ all:
 test:
 	./tests/install_bash_unit.sh
 	./bash_unit
-	./bash_unit tests/test_hbase_up.sh
-	./bash_unit tests/test_hbase_exporter_up.sh
+	./bash_unit tests/test_hbase_exporter.sh
 
 clean:
 	rm -rf $(hbase_tmp_path)
