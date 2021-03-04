@@ -5,7 +5,7 @@ HBASE_PORT=16020
 ZK_HOST="$HBASE_HOST"
 ZK_PORT=2181
 HBASE_TIME_STARTUP=15
-HBASE_EXPORTER_TIME_STARTUP=8
+HBASE_EXPORTER_TIME_STARTUP=15
 HBASE_VERSION="2.4.1"
 
 setup_suite() {
@@ -24,7 +24,9 @@ setup_suite() {
     cd ../
     printf "Starting hbase-exporter\n"
     #./hbase-exporter --zookeeper-server ${ZK_SERVER:-"127.0.0.1"} 2>&1 > /dev/null &
-    ../hbase-exporter --zookeeper-server=${ZK_SERVER:-"127.0.0.1"} --hbase-pseudo-distributed=True &
+    ../hbase-exporter --zookeeper-server=${ZK_SERVER:-"127.0.0.1"} \
+                      --hbase-pseudo-distributed=True \
+                      --hbase-table="foo" &
     PID=$!
     sleep $HBASE_EXPORTER_TIME_STARTUP
 }
