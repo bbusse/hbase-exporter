@@ -632,7 +632,7 @@ class hbase_exporter():
         # Delete what we wrote
         logging.info("Deleting at " + key.decode('utf-8'))
         try:
-            pybase_client.delete(table, key, values)
+            pybase_client.delete(hbase_table, key, values)
         except Exception as e:
             logging.error('Failed to delete: %s', str(e))
             self.hbase_write_success = 0
