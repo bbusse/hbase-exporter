@@ -743,6 +743,7 @@ if __name__ == '__main__':
     level = logging.getLevelName(loglevel)
     logger.setLevel(level)
 
+    # Try the hbase from test suite if no hbase on PATH
     if not which('hbase'):
         if os.access(cmd_hbase_test, os.X_OK):
             cmd_hbase = cmd_hbase_test
