@@ -7,6 +7,7 @@ HBASE_FILE="hbase-${HBASE_VERSION}-bin.tar.gz"
 HBASE_URL="https://downloads.apache.org/hbase/${HBASE_VERSION}/${HBASE_FILE}"
 HBASE_FILE_CKSUM="5afb643c2391461619516624168e042b42a66e25217a3319552264c6af522e3a21a5212bfcba759b7b976794648ef13ee7b5a415f33cdb89bba43d40162aa685"
 HBASE_HOST="127.0.0.1"
+HBASE_CONFIG="hbase/conf/hbase-site.xml"
 
 declare -a DEPS=("java")
 
@@ -31,12 +32,13 @@ download() {
         curl -LO ${1}
     fi
 
-    printf "Extracting archive\n"
+    printf "Extracting HBase archive\n"
     tar xfz ${HBASE_FILE}
+    mv hbase-${HBASE_VERSION} hbase/
 }
 
 create_config() {
-    printf "Writing config\n"
+    printf "Writing HBase config\n"
     cat <<EOF > $2
 <?xml version="1.0"?>
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
@@ -59,4 +61,4 @@ EOF
 
 check_dependencies
 download ${HBASE_URL}
-create_config "/tmp" "hbase-${HBASE_VERSION}/conf/hbase-site.xml"
+create_config "/tmp" ${HBASE_CONFIG}
