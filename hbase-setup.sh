@@ -37,17 +37,21 @@ download() {
 
 create_config() {
     printf "Writing config\n"
-    cat <<EOF > $1
+    cat <<EOF > $2
 <?xml version="1.0"?>
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
 <configuration>
   <property>
     <name>hbase.rootdir</name>
-    <value>file://${1}/hbase</value>
+    <value>file:///${1}/hbase</value>
   </property>
   <property>
     <name>hbase.zookeeper.property.dataDir</name>
     <value>${1}/zookeeper</value>
+  </property>
+  <property>
+    <name>hbase.unsafe.stream.capability.enforce</name>
+    <value>false</value>
   </property>
 </configuration>
 EOF
@@ -55,4 +59,4 @@ EOF
 
 check_dependencies
 download ${HBASE_URL}
-create_config "hbase-${HBASE_VERSION}/conf/hbase-site.xml"
+create_config "/tmp" "hbase-${HBASE_VERSION}/conf/hbase-site.xml"
