@@ -23,8 +23,8 @@ setup_suite() {
     # Run exporter
     cd ../
     printf "Starting hbase-exporter\n"
-    #./hbase-exporter --zookeeper-server ${ZK_SERVER:-"127.0.0.1:2181"} 2>&1 > /dev/null &
-    ../hbase-exporter --zookeeper-server ${ZK_SERVER:-"127.0.0.1:2181"} --hbase-pseudo-distributed=True &
+    #./hbase-exporter --zookeeper-server ${ZK_SERVER:-"127.0.0.1"} 2>&1 > /dev/null &
+    ../hbase-exporter --zookeeper-server=${ZK_SERVER:-"127.0.0.1"} --hbase-pseudo-distributed=True &
     PID=$!
     sleep $HBASE_EXPORTER_TIME_STARTUP
 }
