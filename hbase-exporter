@@ -157,6 +157,7 @@ class zk():
         re_mode = re.compile(r'^Mode:\s*(.+?)\s*$')
 
         for address in address_list:
+            logging.info("Probing zookeeper at address: " + address)
             cmd = 'echo stat | nc ' + address + ' 2181'
             p = Popen(['/bin/sh', '-c', cmd], stdout=PIPE, stderr=PIPE, close_fds=False)
             output, error = p.communicate()
