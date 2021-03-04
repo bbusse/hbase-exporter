@@ -5,7 +5,7 @@ HBASE_PORT=16020
 ZK_HOST="$HBASE_HOST"
 ZK_PORT=2181
 HBASE_TIME_STARTUP=15
-HBASE_EXPORTER_TIME_STARTUP=15
+HBASE_EXPORTER_TIME_STARTUP=60
 HBASE_VERSION="2.4.1"
 
 setup_suite() {
@@ -21,14 +21,13 @@ setup_suite() {
     sleep ${HBASE_TIME_STARTUP}
 
     # Run exporter
-    cd ../
+    cd ../../
     printf "Starting hbase-exporter\n"
     #./hbase-exporter --zookeeper-server ${ZK_SERVER:-"127.0.0.1"} 2>&1 > /dev/null &
-    ../hbase-exporter --zookeeper-server=${ZK_SERVER:-"127.0.0.1"} \
+    ./hbase-exporter --zookeeper-server=${ZK_SERVER:-"127.0.0.1"} \
                       --hbase-pseudo-distributed=True \
                       --hbase-table="foo" &
     PID=$!
-    sleep $HBASE_EXPORTER_TIME_STARTUP
 }
 
 test_hbase_running() {
@@ -49,6 +48,7 @@ test_hbase_exporter_up() {
 }
 
 test_hbase_exporter_export_zk_live() {
+    sleep $HBASE_EXPORTER_TIME_STARTUP
     r=$(curl -s http://127.0.0.1:9010 | grep '^zookeeper_num_live' | cut -d " " -f2)
     assert_not_equals "0.0" "$r" "Zookeeper not live"
 }

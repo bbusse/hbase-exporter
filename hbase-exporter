@@ -78,7 +78,6 @@ hdfs_config_file = "/etc/hadoop/conf/hdfs-site.xml"
 cmd_hbase_active_master = ['/usr/hdp/current/hbase-client/bin/hbase-jruby', '/usr/hdp/current/hbase-client/bin/get-active-master.rb']
 cmd_hbase = 'hbase'
 cmd_hbase_test = 'tests/hbase/bin/hbase'
-cmd_hbase_write = ['hbase-write']
 cmd_hdfs_namenodes = ['hdfs', 'getconf', '-namenodes']
 
 # Use command line arguments to set the following vars
@@ -527,7 +526,7 @@ class hbase_exporter():
         self.num_inconsistencies = None
         hbck_status = None
 
-        logging.info("hbase: Running hbck consistency check")
+        logging.info("hbase: Running hbck consistency check with cmd: " + cmd_hbase)
         p = Popen([cmd_hbase, 'hbck'], stdout=PIPE, stderr=PIPE, close_fds=False)
         output, error = p.communicate()
         output = output.splitlines()
@@ -745,7 +744,11 @@ if __name__ == '__main__':
 
     # Try the hbase from test suite if no hbase on PATH
     if not which('hbase'):
-        if os.access(cmd_hbase_test, os.X_OK):
+        logging.error("hbase: Could not find HBase executable in PATH")
+        if not os.access(cmd_hbase_test, os.X_OK):
+            logging.error("hbase: Could not find HBase executable from test suite (" + cmd_hbase_test + ")")
+        else:
+            logging.info("hbase: Using HBase executable from test suite")
             cmd_hbase = cmd_hbase_test
 
     # Start the Prometheus server

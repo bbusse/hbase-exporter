@@ -34,7 +34,7 @@ download() {
 
     printf "Extracting HBase archive\n"
     tar xfz ${HBASE_FILE}
-    mv hbase-${HBASE_VERSION} hbase/
+    mv -f hbase-${HBASE_VERSION} hbase/
 }
 
 create_config() {
