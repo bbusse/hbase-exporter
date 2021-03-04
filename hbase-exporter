@@ -170,13 +170,13 @@ class zk():
                     logging.info("zk: server %s: %s", address, mode)
                     num_active_servers += 1
 
-                    if match.group(1) == "leader":
+                    if match.group(1) == "leader" or match.group(1) == "standalone":
                         zk_has_leader = 1
                         zk_leader_address = address
                         prom_zookeeper_has_leader.set(zk_has_leader)
 
             for line in error:
-                logging.info(line)
+                logging.info(line.decode('utf-8'))
 
         prom_zookeeper_num_live.set(num_active_servers)
         logging.info("zk: %d active ZooKeeper servers", num_active_servers)
