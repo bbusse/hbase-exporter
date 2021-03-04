@@ -76,7 +76,8 @@ prom_zookeeper_has_leader = Gauge('zookeeper_has_leader', 'ZooKeeper cluster has
 # HDFS/HBase
 hdfs_config_file = "/etc/hadoop/conf/hdfs-site.xml"
 cmd_hbase_active_master = ['/usr/hdp/current/hbase-client/bin/hbase-jruby', '/usr/hdp/current/hbase-client/bin/get-active-master.rb']
-cmd_hbase_hbck = ['hbase', 'hbck']
+cmd_hbase = 'hbase'
+cmd_hbase_test = 'tests/hbase/bin/hbase'
 cmd_hbase_write = ['hbase-write']
 cmd_hdfs_namenodes = ['hdfs', 'getconf', '-namenodes']
 
@@ -526,7 +527,7 @@ class hbase_exporter():
         hbck_status = None
 
         logging.info("hbase: Running hbck consistency check")
-        p = Popen(['hbase', 'hbck'], stdout=PIPE, stderr=PIPE, close_fds=False)
+        p = Popen([cmd_hbase, 'hbck'], stdout=PIPE, stderr=PIPE, close_fds=False)
         output, error = p.communicate()
         output = output.splitlines()
         error = error.splitlines()
@@ -599,7 +600,6 @@ class hbase_exporter():
 
 
     def hbase_read_write_test(self, zk_server):
-        table = os.environ['HBASE_TABLE']
         key = "0x42devoops".encode('utf-8')
         pybase_client = pybase.NewClient(zk_server)
         cf = "t".encode('utf-8')
@@ -611,7 +611,7 @@ class hbase_exporter():
 
         # Read access
         try:
-            rsp = pybase_client.get(table, key)
+            rsp = pybase_client.get(hbase_table, key)
             self.hbase_read_success = 1
         except:
             self.hbase_read_success = 0
@@ -681,6 +681,8 @@ if __name__ == '__main__':
 
     parser = configargparse.ArgParser( description="")
     parser.add_argument('--hbase-master', dest='hbase_master', env_var='HBASE_MASTER', action='append', help="HBase master address, can be specified multiple times", type=str, default=hbase_master_default_address)
+    parser.add_argument('--hbase-pseudo-distributed', dest='hbase_pseudo_distributed', env_var='HBASE_PSEUDO_DISTRIBUTED', help="Indicated whether HBase is run in pdeudo-distributed mode", type=bool, default=False)
+    parser.add_argument('--hbase-table', dest='hbase_table', env_var='HBASE_TABLE', help="The HBase table for the write test", type=str, required=True)
     parser.add_argument('--hdfs-namenode', dest='hdfs_namenode', env_var='HDFS_NAMENODE', action='append', help="HDFS namenode address, can be specified multiple times", type=str, default=hdfs_namenode_default_address)
     parser.add_argument('--zookeeper-server-address', dest='zk_server', env_var='ZK_SERVER', action='append', help="ZooKeeper server address, can be specified multiple times", type=str, required=True)
     parser.add_argument('--zookeeper-use-tls', dest='zk_use_tls', env_var='ZK_USE_TLS', help="Use TLS when connecting to ZooKeeper", type=bool, default=False)
@@ -702,6 +704,8 @@ if __name__ == '__main__':
     relay_complete_jmx = args.relay_jmx
     prom_export_interval_s = args.prom_export_interval_s
     hbase_hbck_interval_s = args.hbase_hbck_interval_s
+    hbase_pseudo_distributed = args.hbase_pseudo_distributed
+    hbase_table = args.hbase_table
     del locals()['args']
 
     nzk_server = len(zk_server)
@@ -738,6 +742,10 @@ if __name__ == '__main__':
     level = logging.getLevelName(loglevel)
     logger.setLevel(level)
 
+    if not which('hbase'):
+        if os.access(cmd_hbase_test, os.X_OK):
+            cmd_hbase = cmd_hbase_test
+
     # Start the Prometheus server
     try:
         start_http_server(prom_http_port)
@@ -759,6 +767,8 @@ if __name__ == '__main__':
         time.sleep(zk_reconnect_interval_s)
 
     if cluster_is_kerberized:
+        znode_hbase = "/hbase"
+    elif hbase_pseudo_distributed:
         znode_hbase = "/hbase"
     else:
         znode_hbase = "/hbase-unsecure"
