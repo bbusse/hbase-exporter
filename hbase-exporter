@@ -613,14 +613,14 @@ class hbase_exporter():
         try:
             rsp = pybase_client.get(hbase_table, key)
             self.hbase_read_success = 1
+            rspd = self.result_to_dict(rsp)
+            logging.debug('hbase: Read: ')
+            for k, v in rspd.items():
+                logging.debug('key: %', k)
+                logging.debug('value: %', v)
         except:
             self.hbase_read_success = 0
 
-        rspd = self.result_to_dict(rsp)
-        logging.debug('hbase: Read: ')
-        for k, v in rspd.items():
-            logging.debug('key: %', k)
-            logging.debug('value: %', v)
 
         # Write access
         try:
