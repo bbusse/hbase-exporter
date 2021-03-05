@@ -72,6 +72,7 @@ prom_hbase_writeable = Gauge('hbase_is_writeable', 'HBase is writeable')
 prom_zookeeper_num = Gauge('zookeeper_num', 'Known ZooKeeper Servers')
 prom_zookeeper_num_live = Gauge('zookeeper_num_live', 'Live ZooKeeper Servers')
 prom_zookeeper_has_leader = Gauge('zookeeper_has_leader', 'ZooKeeper cluster has a leader')
+prom_zookeeper_num_connections = Gauge('zookeeper_num_connections', 'ZooKeeper connection count for all ZooKeeper servers combined')
 
 # HDFS/HBase
 hdfs_config_file = "/etc/hadoop/conf/hdfs-site.xml"
@@ -153,7 +154,9 @@ class zk():
         zk_has_leader = 0
         zk_leader_address = ""
         num_active_servers = 0
+        num_zk_connections = 0
         re_mode = re.compile(r'^Mode:\s*(.+?)\s*$')
+        re_connections = re.compile(r'^Connections:\s*(.+?)\s*$')
 
         for address in address_list:
             logging.info("Probing zookeeper at address: " + address)
@@ -175,9 +178,16 @@ class zk():
                         zk_leader_address = address
                         prom_zookeeper_has_leader.set(zk_has_leader)
 
+                match = re_connections.match(line.decode('utf-8'))
+                if match:
+                    nconns = match.group(1)
+                    logging.info("zk: server has %s connections",  nconns)
+                    num_zk_connections += int(nconns)
+
             for line in error:
                 logging.info(line.decode('utf-8'))
 
+        prom_zookeeper_num_connections.set(num_zk_connections)
         prom_zookeeper_num_live.set(num_active_servers)
         logging.info("zk: %d active ZooKeeper servers", num_active_servers)
         if zk_has_leader:

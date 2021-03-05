@@ -23,10 +23,9 @@ setup_suite() {
     # Run exporter
     cd ../../
     printf "Starting hbase-exporter\n"
-    #./hbase-exporter --zookeeper-server ${ZK_SERVER:-"127.0.0.1"} 2>&1 > /dev/null &
     ./hbase-exporter --zookeeper-server=${ZK_SERVER:-"127.0.0.1"} \
-                      --hbase-pseudo-distributed=True \
-                      --hbase-table="foo" &
+                     --hbase-pseudo-distributed=True \
+                     --hbase-table="foo" 2>&1 > /dev/null &
     PID=$!
 }
 
@@ -51,6 +50,16 @@ test_hbase_exporter_export_zk_live() {
     sleep $HBASE_EXPORTER_TIME_STARTUP
     r=$(curl -s http://127.0.0.1:9010 | grep '^zookeeper_num_live' | cut -d " " -f2)
     assert_not_equals "0.0" "$r" "Zookeeper not live"
+}
+
+test_hbase_exporter_export_hbase_up() {
+    r=$(curl -s http://127.0.0.1:9010 | grep '^hbase_up' | cut -d " " -f2)
+    assert_not_equals "0.0" "$r" "HBase down"
+}
+
+test_hbase_exporter_export_zk_connection_count() {
+    r=$(curl -s http://127.0.0.1:9010 | grep '^zookeeper_num_connections' | cut -d " " -f2)
+    assert_not_equals "0.0" "$r" "Zookeeper has no connections"
 }
 
 teardown_suite() {
