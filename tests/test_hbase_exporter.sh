@@ -18,7 +18,7 @@ setup_suite() {
     cd hbase
     printf "Starting HBase in pseudo-distributed mode\n"
     ./bin/hbase-daemon.sh --config conf start master
-    sleep ${HBASE_TIME_STARTUP}
+    sleep $HBASE_TIME_STARTUP
 
     # Run exporter
     cd ../../
@@ -27,10 +27,12 @@ setup_suite() {
                      --hbase-pseudo-distributed=True \
                      --hbase-table="foo" 2>&1 > /dev/null &
     PID=$!
+    printf "Waiting ${HBASE_EXPORTER_TIME_STARTUP}s to gather exporter values\n"
+    sleep $HBASE_EXPORTER_TIME_STARTUP
 }
 
 test_hbase_running() {
-    nc -n -w1 ${1:-"127.0.0.1"} ${2:-"16200"}
+    nc -n -w1 ${1:-"127.0.0.1"} ${2:-"16010"}
 }
 
 test_hbase_zk_running() {
@@ -47,7 +49,6 @@ test_hbase_exporter_up() {
 }
 
 test_hbase_exporter_export_zk_live() {
-    sleep $HBASE_EXPORTER_TIME_STARTUP
     r=$(curl -s http://127.0.0.1:9010 | grep '^zookeeper_num_live' | cut -d " " -f2)
     assert_not_equals "0.0" "$r" "Zookeeper not live"
 }
@@ -60,6 +61,21 @@ test_hbase_exporter_export_hbase_up() {
 test_hbase_exporter_export_zk_connection_count() {
     r=$(curl -s http://127.0.0.1:9010 | grep '^zookeeper_num_connections' | cut -d " " -f2)
     assert_not_equals "0.0" "$r" "Zookeeper has no connections"
+}
+
+test_hbase_exporter_export_zk_has_leader() {
+    r=$(curl -s http://127.0.0.1:9010 | grep '^zookeeper_has_leader' | cut -d " " -f2)
+    assert_not_equals "0.0" "$r" "Zookeeper has no leader"
+}
+
+test_hbase_exporter_export_regionserver_live() {
+    r=$(curl -s http://127.0.0.1:9010 | grep '^hbase_regionservers_live' | cut -d " " -f2)
+    assert_not_equals "0.0" "$r" "HBase: No regionservers"
+}
+
+test_hbase_exporter_export_regionserver_dead() {
+    r=$(curl -s http://127.0.0.1:9010 | grep '^hbase_regionservers_dead' | cut -d " " -f2)
+    assert_equals "0.0" "$r" "HBase: Dead regionservers"
 }
 
 teardown_suite() {
