@@ -8,6 +8,7 @@ HBASE_URL="https://downloads.apache.org/hbase/${HBASE_VERSION}/${HBASE_FILE}"
 HBASE_FILE_CKSUM="5afb643c2391461619516624168e042b42a66e25217a3319552264c6af522e3a21a5212bfcba759b7b976794648ef13ee7b5a415f33cdb89bba43d40162aa685"
 HBASE_HOST="127.0.0.1"
 HBASE_CONFIG="hbase/conf/hbase-site.xml"
+HBASE_TEST_SUITE_EXECUTABLE="hbase/bin/hbase"
 
 declare -a DEPS=("java")
 
@@ -21,20 +22,22 @@ check_dependencies() {
     done
 }
 
-download() {
-    if [ -f "$HBASE_FILE" ]; then
-        CKSUM="$(sha512 -q ${HBASE_FILE})"
-        if [ "$CKSUM" = "$HBASE_FILE_CKSUM" ]; then
-            printf "HBase archive exists\n"
+prepare_hbase() {
+    if ! [ -f "$HBASE_TEST_SUITE_EXECUTABLE" ]; then
+        if [ -f "$HBASE_FILE" ]; then
+            CKSUM="$(sha512 -q ${HBASE_FILE})"
+            if [ "$CKSUM" = "$HBASE_FILE_CKSUM" ]; then
+                printf "HBase archive exists\n"
+            fi
+        else
+            printf "Downloading ${1}\n"
+            curl -LO ${1}
         fi
-    else
-        printf "Downloading ${1}\n"
-        curl -LO ${1}
-    fi
 
-    printf "Extracting HBase archive\n"
-    tar xfz ${HBASE_FILE}
-    mv -f hbase-${HBASE_VERSION} hbase/
+        printf "Extracting HBase archive\n"
+        tar xfz ${HBASE_FILE}
+        mv -f hbase-${HBASE_VERSION} hbase/
+    fi
 }
 
 create_config() {
@@ -60,5 +63,5 @@ EOF
 }
 
 check_dependencies
-download ${HBASE_URL}
+prepare_hbase ${HBASE_URL}
 create_config "/tmp" ${HBASE_CONFIG}
