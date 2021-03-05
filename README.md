@@ -70,6 +70,8 @@ Run 'hbase-exporter --help' for all arguments
 ```
 $ hbase-exporter --help
 usage: hbase-exporter [-h] [--hbase-master HBASE_MASTER]
+                      [--hbase-pseudo-distributed HBASE_PSEUDO_DISTRIBUTED]
+                      --hbase-table HBASE_TABLE
                       [--hdfs-namenode HDFS_NAMENODE]
                       --zookeeper-server-address ZK_SERVER
                       [--zookeeper-use-tls ZK_USE_TLS]
@@ -79,28 +81,40 @@ usage: hbase-exporter [-h] [--hbase-master HBASE_MASTER]
                       [--relay-jmx RELAY_JMX] [--logfile LOGFILE]
                       [--loglevel LOGLEVEL]
 
+If an arg is specified in more than one place, then commandline values
+override environment variables which override defaults.
+
 optional arguments:
   -h, --help            show this help message and exit
   --hbase-master HBASE_MASTER
                         HBase master address, can be specified multiple times
+                        [env var: HBASE_MASTER]
+  --hbase-pseudo-distributed HBASE_PSEUDO_DISTRIBUTED
+                        Indicated whether HBase is run in pdeudo-distributed
+                        mode [env var: HBASE_PSEUDO_DISTRIBUTED]
+  --hbase-table HBASE_TABLE
+                        The HBase table for the write test [env var:
+                        HBASE_TABLE]
   --hdfs-namenode HDFS_NAMENODE
                         HDFS namenode address, can be specified multiple times
+                        [env var: HDFS_NAMENODE]
   --zookeeper-server-address ZK_SERVER
                         ZooKeeper server address, can be specified multiple
-                        times
+                        times [env var: ZK_SERVER]
   --zookeeper-use-tls ZK_USE_TLS
-                        Use TLS when connecting to ZooKeeper
+                        Use TLS when connecting to ZooKeeper [env var:
+                        ZK_USE_TLS]
   --exporter-port PROM_HTTP_PORT
-                        Listen port for Prometheus export
+                        Listen port for Prometheus export [env var:
+                        PROM_HTTP_PORT]
   --export-refresh-rate PROM_EXPORT_INTERVAL_S
-                        Time between metrics are gathered in seconds
+                        Time between metrics are gathered in seconds [env var:
+                        PROM_EXPORT_INTERVAL_S]
   --hbck-refresh-rate HBASE_HBCK_INTERVAL_S
                         Minimum time between two consecutive hbck runs in
-                        seconds
+                        seconds [env var: HBASE_HBCK_INTERVAL_S]
   --relay-jmx RELAY_JMX
-                        Relay complete JMX data
-  --logfile LOGFILE     Path to optional logfile
-  --loglevel LOGLEVEL   Loglevel, default: INFO
+                        Relay complete JMX data [env var: RELAY_JMX]
 ```
 
 ### Deploy
