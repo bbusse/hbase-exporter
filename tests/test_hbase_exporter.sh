@@ -64,4 +64,5 @@ test_hbase_exporter_export_zk_connection_count() {
 
 teardown_suite() {
     kill $PID
+    ./tests/hbase/bin/hbase-daemon.sh stop master
 }
