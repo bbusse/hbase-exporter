@@ -84,7 +84,7 @@ cmd_hdfs_namenodes = ['hdfs', 'getconf', '-namenodes']
 # Use command line arguments to set the following vars
 # Do not change them here (See TODO)
 namenodes = ""
-namenode_use_tls = False
+jmx_use_tls = False
 hbase_master_ui_default_port = 16010
 hdfs_namenode_default_port = 50070
 cluster_is_kerberized = False
@@ -210,26 +210,31 @@ class jmx_query():
 
         hdfs_active_namenode = self.active_namenode(hdfs_namenode_hosts)
         hbase_active_master = hbase_exporter.zk_active_master()
+        hdfs_jmx = True
+        hbase_jmx = True
 
         if not hdfs_active_namenode:
             logging.info("Failed to determine active HDFS namenode")
-            return False
+            hdfs_jmx = False
 
         if not hbase_active_master:
             logging.info("Failed to determine active HBase master")
-            return False
+            hbase_jmx = False
 
-        url = self.get_url('hdfs', hdfs_active_namenode)
-        logging.info("hdfs: Fetching jmx data")
-        self.jmx_data(url)
-        url = self.get_url('hbase', hbase_active_master)
-        logging.info("hbase: Fetching jmx data")
-        self.jmx_data(url)
+        if hdfs_jmx:
+            url = self.get_url('hdfs', hdfs_active_namenode)
+            logging.info("hdfs: Fetching jmx data")
+            self.jmx_data(url)
+
+        if hbase_jmx:
+            url = self.get_url('hbase', hbase_active_master)
+            logging.info("hbase: Fetching jmx data")
+            self.jmx_data(url)
 
 
     def get_url(self, service, hostname):
 
-        if (namenode_use_tls):
+        if (jmx_use_tls):
             url_scheme = "https://"
         else:
             url_scheme = "http://"
