@@ -7,3 +7,7 @@ bash_unit
 tests/hbase
 tests/hbase-?.?.?/
 tests/hbase-?.?.?-bin.tar.gz
+tests/hbase-?.??.?.?-hadoop2-bin.tar.gz
+tests/hadoop
+tests/hadoop-?.??.?/
+tests/hadoop-?.??.?.tar.gz
