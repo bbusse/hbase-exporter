@@ -20,7 +20,7 @@ setup_suite() {
     printf "Starting hbase-exporter\n"
     ./hbase-exporter --zookeeper-server="${ZK_SERVER:-"127.0.0.1"}" \
                      --hbase-pseudo-distributed=True \
-                     --hbase-table="foo" > dev/null 2>&1
+                     --hbase-table="foo" > /dev/null 2>&1
     PID=$!
     printf "Waiting %ss to gather exporter values\n" ${HBASE_EXPORTER_TIME_STARTUP}
     sleep $HBASE_EXPORTER_TIME_STARTUP
