@@ -1,12 +1,7 @@
 #!/usr/bin/env bash
 
-HBASE_HOST="127.0.0.1"
-HBASE_PORT=16020
-ZK_HOST="$HBASE_HOST"
-ZK_PORT=2181
 HBASE_TIME_STARTUP=15
 HBASE_EXPORTER_TIME_STARTUP=60
-HBASE_VERSION="2.4.1"
 
 setup_suite() {
     export JAVA_HOME=${JAVA_HOME:-"/usr/local"}
@@ -15,36 +10,33 @@ setup_suite() {
     ./hbase-setup.sh
 
     # Run HBase
-    cd hbase
+    cd hbase || exit
     printf "Starting HBase in pseudo-distributed mode\n"
     ./bin/hbase-daemon.sh --config conf start master
     sleep $HBASE_TIME_STARTUP
 
     # Run exporter
-    cd ../../
+    cd ../../ || exit
     printf "Starting hbase-exporter\n"
-    ./hbase-exporter --zookeeper-server=${ZK_SERVER:-"127.0.0.1"} \
+    ./hbase-exporter --zookeeper-server="${ZK_SERVER:-"127.0.0.1"}" \
                      --hbase-pseudo-distributed=True \
-                     --hbase-table="foo" 2>&1 > /dev/null &
+                     --hbase-table="foo" > dev/null 2>&1
     PID=$!
-    printf "Waiting ${HBASE_EXPORTER_TIME_STARTUP}s to gather exporter values\n"
+    printf "Waiting %ss to gather exporter values\n" ${HBASE_EXPORTER_TIME_STARTUP}
     sleep $HBASE_EXPORTER_TIME_STARTUP
 }
 
 test_hbase_running() {
-    nc -n -w1 ${1:-"127.0.0.1"} ${2:-"16010"}
+    nc -n -w1 "${1:-"127.0.0.1"}" "${2:-"16010"}"
 }
 
 test_hbase_zk_running() {
-    r=`nc -n -w1 ${1:-"127.0.0.1"} ${2:-"2181"} <<END
-"ruok"
-END
-`
-    printf "$r"
+    r=$(echo ruok | nc -n -w1 "${1:-"127.0.0.1"}" "${2:-"2181"}")
+    printf "%s" "$r"
 }
 
 test_hbase_exporter_up() {
-    nc -nu -w1 ${1:-"127.0.0.1"} ${2:-"9010"} 2>&1 > /dev/null &
+    nc -nu -w1 "${1:-"127.0.0.1"} ${2:-"9010"}" > /dev/null 2>&1
     curl -s http://127.0.0.1:9010 > /dev/null
 }
 
