@@ -10,4 +10,4 @@ install() {
     fi
 }
 
-install https://raw.githubusercontent.com/bbusse/bash_unit/freebsd-compat/install.sh
+install https://raw.githubusercontent.com/pgrange/bash_unit/master/install.sh
