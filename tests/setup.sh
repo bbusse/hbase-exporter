@@ -22,7 +22,6 @@ compare_checksum() {
     local r
     CKSUM=$(sha512 -q "${1}")
     if ! [ "$CKSUM" = "$2" ]; then
-        printf "File has wrong checksum (%s)\n" "$1"
         r=1
     else
         r=0
@@ -36,12 +35,14 @@ write_file() {
 }
 
 run() {
+    local pid
     printf "Starting %s\n" "$2"
     if $($1 > /dev/null 2>&1 &); then
         printf "Started %s successfully\n" "$2"
+        pid=$!
     else
         printf "Failed to start %s\n" "$2"
-        exit 1
+        pid="-1"
     fi
-    echo "$!"
+    echo "$pid"
 }

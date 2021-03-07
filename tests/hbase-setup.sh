@@ -4,9 +4,10 @@ set -ueo pipefail
 
 HBASE_VERSION="0.96.1.1"
 HBASE_FILE="hbase-${HBASE_VERSION}-hadoop2-bin.tar.gz"
+HBASE_DIR="hbase-${HBASE_VERSION}-hadoop2"
 #HBASE_URL="https://downloads.apache.org/hbase/${HBASE_VERSION}/${HBASE_FILE}"
 HBASE_URL="https://archive.apache.org/dist/hbase/hbase-${HBASE_VERSION}/${HBASE_FILE}"
-HBASE_FILE_CKSUM="5afb643c2391461619516624168e042b42a66e25217a3319552264c6af522e3a21a5212bfcba759b7b976794648ef13ee7b5a415f33cdb89bba43d40162aa685"
+HBASE_FILE_CKSUM="1625453f839f7d8c86078a131af9731f6df28c59e58870db84913dcbc640d430253134a825de7cec247ea1f0cf232435765e00844ee2e4faf31aeb356955c478"
 HBASE_CONFIG_FILE="hbase/conf/hbase-site.xml"
 HBASE_TEST_SUITE_EXECUTABLE="hbase/bin/hbase"
 
@@ -42,7 +43,8 @@ prepare_hbase() {
             printf "HBase archive exists\n"
             if compare_checksum $HBASE_FILE $HBASE_FILE_CKSUM; then
                 extract_archive $HBASE_FILE $HBASE_VERSION
-                mv -f hbase-"${VERSION}" hbase/
+                mv -f "${HBASE_DIR}" hbase
+                return
             else
                 printf "HBase archive has wrong checksum (%s)\n" "$1"
                 printf "Execute script again to redownload file\n"
@@ -55,7 +57,7 @@ prepare_hbase() {
 
         if compare_checksum $HBASE_FILE $HBASE_FILE_CKSUM; then
             extract_archive $HBASE_FILE $HBASE_VERSION
-            mv -f hbase-${HBASE_VERSION} hbase/
+            mv -f ${HBASE_DIR} hbase
         fi
     fi
 }

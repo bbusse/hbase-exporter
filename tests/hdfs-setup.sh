@@ -9,6 +9,7 @@ HADOOP_FILE_CKSUM="2460e02cd1f80dfed7a8981bbc934c095c0a341435118bec781fd835ec2eb
 HDFS_CONFIG_FILE="hadoop/etc/hadoop/hdfs-site.xml"
 HDFS_CONFIG_FILE_CORE="hadoop/etc/hadoop/core-site.xml"
 HDFS_CONFIG_FILE_MAPRED="hadoop/etc/hadoop/mapred-site.xml"
+HDFS_CONFIG_DATANODES="localhost"
 HDFS_TEST_SUITE_EXECUTABLE="hadoop/bin/hdfs"
 
 source setup.sh
@@ -23,7 +24,7 @@ create_hdfs_core_config() {
 <configuration>
    <property>
       <name>fs.defaultFS</name>
-      <value>hdfs://$1</value>
+      <value>hdfs://$2</value>
    </property>
 </configuration>
 EOF
@@ -52,8 +53,32 @@ create_hdfs_config() {
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
 <configuration>
   <property>
+    <name>dfs.nameservices</name>
+    <value>$2</value>
+  </property>
+  <property>
+    <name>dfs.ha.namenodes.$2</name>
+    <value>nn1,nn2</value>
+  </property>
+  <property>
     <name>fs.defaultFS</name>
-    <value>hdfs://$1</value>
+    <value>hdfs://$2</value>
+  </property>
+  <property>
+    <name>dfs.namenode.rpc-address.$2.nn1</name>
+    <value>localhost:8020</value>
+  </property>
+  <property>
+    <name>dfs.namenode.rpc-address.$2.nn2</name>
+    <value>master-1:8020</value>
+  </property>
+  <property>
+     <name>dfs.namenode.http-address.$2.nn1</name>
+     <value>localhost:50070</value>
+  </property>
+  <property>
+     <name>dfs.namenode.http-address.$2.nn2</name>
+     <value>master-1:50070</value>
   </property>
   <property>
     <name>dfs.namenode.name.dir</name>
@@ -62,7 +87,15 @@ create_hdfs_config() {
   <property>
     <name>dfs.datanode.data.dir</name>
     <value>/tmp/hdfs/datanode</value>
-    </property>
+  </property>
+  <property>
+    <name>dfs.namenode.shared.edits.dir</name>
+    <value>file:///tmp/hadoop</value>
+  </property>
+  <property>
+    <name>ha.zookeeper.quorum</name>
+    <value>127.0.0.1:2181</value>
+  </property>
 </configuration>
 EOF
     echo "$CONFIG"
@@ -95,9 +128,10 @@ prepare_hadoop() {
 
 check_dependencies
 prepare_hadoop ${HADOOP_URL}
-HDFS_CONFIG=$(create_hdfs_config "127.0.0.1:8020")
-HDFS_CONFIG_CORE=$(create_hdfs_core_config "127.0.0.1:8020")
+HDFS_CONFIG=$(create_hdfs_config "127.0.0.1:8020" "test-cluster")
+HDFS_CONFIG_CORE=$(create_hdfs_core_config "127.0.0.1:8020" "test-cluster")
 HDFS_CONFIG_MAPRED=$(create_hdfs_mapred_config "127.0.0.1:8021")
 write_file ${HDFS_CONFIG_FILE} "${HDFS_CONFIG}"
 write_file ${HDFS_CONFIG_FILE_CORE} "${HDFS_CONFIG_CORE}"
 write_file ${HDFS_CONFIG_FILE_MAPRED} "${HDFS_CONFIG_MAPRED}"
+write_file ${HDFS_CONFIG_DATANODES} "localhost"

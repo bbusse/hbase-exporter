@@ -4,7 +4,8 @@ HBASE_TIME_STARTUP=15
 HBASE_EXPORTER_TIME_STARTUP=60
 HBASE_CMD="./bin/hbase-daemon.sh --config conf start master"
 HDFS_FORMAT=false
-HDFS_CMD="./hadoop/bin/hdfs --config hadoop/etc/hadoop namenode"
+HDFS_CMD_NAMENODE="./hadoop/bin/hdfs --config hadoop/etc/hadoop namenode"
+HDFS_CMD_DATANODE="./hadoop/bin/hdfs --config hadoop/etc/hadoop datanode"
 HDFS_CMD_FORMAT="./hadoop/bin/hdfs --config hadoop/etc/hadoop namenode -format"
 
 source setup.sh
@@ -31,7 +32,8 @@ setup_suite() {
         r=run $HDFS_CMD_FORMAT "HDFS_FORMAT"
     fi
 
-    run "$HDFS_CMD" "HDFS"
+    run "$HDFS_CMD_NAMENODE" "HDFS Namenode"
+    run "$HDFS_CMD_DATANODE" "HDFS Datanode"
 
     # Start HBase
     cd hbase/ || exit
