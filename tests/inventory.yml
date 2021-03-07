@@ -1,0 +1,7 @@
+all:
+  children:
+    namenodes:
+      vars:
+      hosts:
+        namenode-1:
+        namenode-2:

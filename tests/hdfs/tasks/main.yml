@@ -1,0 +1,15 @@
+---
+
+  - name: Download and extract HDFS archive
+    ansible.builtin.shell:
+      cmd: hdfs-setup.sh
+      chdir: "{{ hadoop_prefix }}"
+
+  - name: Create core-site.xml
+    template: src={{ hdfs_config_path}}/core-site.xml.j2 dest={{ hdfs_config_path}}/core-site.xml mode=0700
+
+  - name: Create hdfs-site.xml
+    template: src={{ hdfs_config_path}}/hdfs-site.xml.j2 dest={{ hdfs_config_path}}/hdfs-site.xml mode=0700
+
+  - name: Create mapred-site.xml
+    template: src={{ hdfs_config_path}}/core-site.xml.j2 dest={{ hdfs_config_path}}/mapred-site.xml mode=0700

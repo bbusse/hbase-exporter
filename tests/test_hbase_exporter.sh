@@ -4,9 +4,12 @@ HBASE_TIME_STARTUP=15
 HBASE_EXPORTER_TIME_STARTUP=60
 HBASE_CMD="./bin/hbase-daemon.sh --config conf start master"
 HDFS_FORMAT=false
-HDFS_CMD_NAMENODE="./hadoop/bin/hdfs --config hadoop/etc/hadoop namenode"
-HDFS_CMD_DATANODE="./hadoop/bin/hdfs --config hadoop/etc/hadoop datanode"
-HDFS_CMD_FORMAT="./hadoop/bin/hdfs --config hadoop/etc/hadoop namenode -format"
+HADOOP_CONFIG_DIR="hadoop/etc/hadoop"
+HDFS_CMD_NAMENODE="./hadoop/bin/hdfs --config ${HADOOP_CONFIG_DIR} namenode"
+HDFS_CMD_DATANODE="./hadoop/bin/hdfs --config ${HADOOP_CONFIG_DIR} datanode"
+HDFS_CMD_ZKFC="./hadoop/bin/hdfs --config ${HADOOP_CONFIG_DIR} start zkfc"
+HDFS_CMD_FORMAT="./hadoop/bin/hdfs --config ${HADOOP_CONFIG_DIR} namenode -format"
+HDFS_CMD_FORMAT_HA="./hadoop/bin/hdfs --config ${HADOOP_CONFIG_DIR} namenode -initializeSharedEdits"
 
 source setup.sh
 
@@ -26,7 +29,11 @@ setup_suite() {
     fi
 
     # Setup HDFS
-    if ! ./hdfs-setup.sh; then
+    if ! ansible-playbook -i inventory.yml \
+                          -e "hdfs_config_path=$(pwd)/hadoop/etc/hadoop" \
+                          -e "hadoop_prefix=$(pwd)" \
+                          hdfs-create.yml; then
+
          printf "Failed to setup HDFS to run test suite\n"
          exit 1
     fi
@@ -34,7 +41,8 @@ setup_suite() {
     # Start hdfs
     if [ true = "$HDFS_FORMAT" ]; then
         printf "Formatting %s\n" "$1"
-        r=run $HDFS_CMD_FORMAT "HDFS_FORMAT"
+        r=run $HDFS_CMD_FORMAT "HDFS FORMAT"
+        r=run $HDFS_CMD_FORMAT_HA "HDFS FORMAT HA"
     fi
 
     run "$HDFS_CMD_NAMENODE" "HDFS Namenode"
