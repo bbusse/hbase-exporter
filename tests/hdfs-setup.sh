@@ -66,19 +66,19 @@ create_hdfs_config() {
   </property>
   <property>
     <name>dfs.namenode.rpc-address.$2.nn1</name>
-    <value>localhost:8020</value>
-  </property>
-  <property>
-    <name>dfs.namenode.rpc-address.$2.nn2</name>
     <value>master-1:8020</value>
   </property>
   <property>
+    <name>dfs.namenode.rpc-address.$2.nn2</name>
+    <value>master-2:8020</value>
+  </property>
+  <property>
      <name>dfs.namenode.http-address.$2.nn1</name>
-     <value>localhost:50070</value>
+     <value>master-1:50070</value>
   </property>
   <property>
      <name>dfs.namenode.http-address.$2.nn2</name>
-     <value>master-1:50070</value>
+     <value>master-2:50070</value>
   </property>
   <property>
     <name>dfs.namenode.name.dir</name>

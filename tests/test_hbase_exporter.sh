@@ -11,7 +11,12 @@ HDFS_CMD_FORMAT="./hadoop/bin/hdfs --config hadoop/etc/hadoop namenode -format"
 source setup.sh
 
 setup_suite() {
-    export JAVA_HOME=${JAVA_HOME:-"/usr/local"}
+    if [ "FreeBSD" = $(uname) ]; then
+        export JAVA_HOME=${JAVA_HOME:-"/usr/local"}
+    else
+        export JAVA_HOME=${JAVA_HOME:-"/"}
+    fi
+
     export HADOOP_PREFIX="$(pwd)/hadoop"
 
     # Setup HBase
