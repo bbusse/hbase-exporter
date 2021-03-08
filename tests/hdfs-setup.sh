@@ -6,13 +6,14 @@ HADOOP_VERSION="2.10.1"
 HADOOP_FILE="hadoop-$HADOOP_VERSION.tar.gz"
 HADOOP_URL="https://artfiles.org/apache.org/hadoop/common/hadoop-${HADOOP_VERSION}/${HADOOP_FILE}"
 HADOOP_FILE_CKSUM="2460e02cd1f80dfed7a8981bbc934c095c0a341435118bec781fd835ec2ebdc5543a03d92d24f2ddeebdfe1c2c460065ba1d394ed9a73cbb2020b40a8d8b5e07"
-HDFS_CONFIG_TEMPLATE="hadoop/etc/hadoop/hdfs-site.xml"
-HDFS_CONFIG_TEMPLATE_CORE="hadoop/etc/hadoop/core-site.xml"
-HDFS_CONFIG_TEMPLATE_MAPRED="hadoop/etc/hadoop/mapred-site.xml"
+HDFS_CONFIG_TEMPLATE="hadoop/etc/hadoop/hdfs-site.xml.j2"
+HDFS_CONFIG_TEMPLATE_CORE="hadoop/etc/hadoop/core-site.xml.j2"
+HDFS_CONFIG_TEMPLATE_MAPRED="hadoop/etc/hadoop/mapred-site.xml.j2"
 HDFS_CONFIG_DATANODES="localhost"
 HDFS_TEST_SUITE_EXECUTABLE="hadoop/bin/hdfs"
 
-source setup.sh
+SCRIPT_PATH=$(dirname "$0")
+source $SCRIPT_PATH/setup.sh
 
 declare -a DEPS=("java" "ansible-playbook")
 
