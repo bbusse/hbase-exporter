@@ -11,7 +11,8 @@ HDFS_CMD_ZKFC="./hadoop/bin/hdfs --config ${HADOOP_CONFIG_DIR} start zkfc"
 HDFS_CMD_FORMAT="./hadoop/bin/hdfs --config ${HADOOP_CONFIG_DIR} namenode -format"
 HDFS_CMD_FORMAT_HA="./hadoop/bin/hdfs --config ${HADOOP_CONFIG_DIR} namenode -initializeSharedEdits"
 
-source setup.sh
+SCRIPT_PATH=$(dirname "$0")
+source $SCRIPT_PATH/setup.sh
 
 setup_suite() {
     if [ "FreeBSD" = "$(uname)" ]; then
@@ -23,7 +24,11 @@ setup_suite() {
     export HADOOP_PREFIX="$(pwd)/hadoop"
 
     # Setup HBase
-    if ! ./hbase-setup.sh; then
+    if ! ansible-playbook -i inventory.yml \
+                          -e "hdfs_config_path=${HADOOP_PREFIX}/etc/hadoop" \
+                          -e "script_path=$(pwd)" \
+                          hbase-create.yml; then
+
          printf "Failed to setup HBase to run test suite\n"
          exit 1
     fi
@@ -31,7 +36,7 @@ setup_suite() {
     # Setup HDFS
     if ! ansible-playbook -i inventory.yml \
                           -e "hdfs_config_path=$(pwd)/hadoop/etc/hadoop" \
-                          -e "hadoop_prefix=$(pwd)" \
+                          -e "script_path=$(pwd)" \
                           hdfs-create.yml; then
 
          printf "Failed to setup HDFS to run test suite\n"
