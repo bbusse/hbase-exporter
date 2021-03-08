@@ -5,7 +5,8 @@
       url: "{{ hadoop_archive_url }}"
       dest: "{{ script_path }}"
       mode: 0600
-      checksum: sha256:273d5fa1d479d0bb96759b16cf4cbd6ba3e7f863a0778cbae55ab83417e961f0
+      checksum: sha256:{{ hadoop_archive_file_checksum256 }}
+    run_once: true
     delegate_to: localhost
 
   - name: Copy archive
@@ -17,7 +18,7 @@
   - name: Extract archive
     ansible.builtin.unarchive:
       src: "/tmp/{{ hadoop_archive }}"
-      dest: "{{ script_path }}"
+      dest: "/tmp"
       remote_src: yes
 
   - name: Write config template

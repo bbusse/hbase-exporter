@@ -13,9 +13,7 @@ HDFS_CONFIG_DATANODES="localhost"
 HDFS_TEST_SUITE_EXECUTABLE="hadoop/bin/hdfs"
 
 SCRIPT_PATH=$(dirname "$0")
-source $SCRIPT_PATH/setup.sh
-
-declare -a DEPS=("java" "ansible-playbook")
+source $SCRIPT_PATH/../../setup.sh
 
 create_hdfs_core_config_template() {
     #printf "Writing HDFS core-site.xml config\n"
@@ -114,7 +112,6 @@ EOF
     echo "$CONFIG"
 }
 
-check_dependencies
 HDFS_CONFIG=$(create_hdfs_config_template)
 HDFS_CONFIG_CORE=$(create_hdfs_core_config_template)
 HDFS_CONFIG_MAPRED=$(create_hdfs_mapred_config_template)

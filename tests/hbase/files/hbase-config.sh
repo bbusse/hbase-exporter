@@ -11,10 +11,8 @@ HBASE_FILE_CKSUM="1625453f839f7d8c86078a131af9731f6df28c59e58870db84913dcbc640d4
 HBASE_CONFIG_TEMPLATE="hbase/conf/hbase-site.xml.j2"
 HBASE_TEST_SUITE_EXECUTABLE="hbase/bin/hbase"
 
-declare -a DEPS=("java")
-
 SCRIPT_PATH=$(dirname "$0")
-source $SCRIPT_PATH/setup.sh
+source $SCRIPT_PATH/../../setup.sh
 
 create_hbase_config_template() {
     read -r -d '' CONFIG <<EOF
@@ -38,6 +36,5 @@ EOF
     echo "$CONFIG"
 }
 
-check_dependencies
 HBASE_CONFIG=$(create_hbase_config_template)
 write_file ${HBASE_CONFIG_TEMPLATE} "${HBASE_CONFIG}"

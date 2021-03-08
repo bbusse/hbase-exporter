@@ -5,19 +5,20 @@
       url: "{{ hbase_archive_url }}"
       dest: "{{ script_path }}"
       mode: 0600
-      checksum: sha256:7334e7da0b655ab02cfc64454c3d2e93a4c584efbde2dfd37915b9530d1643f8
+      checksum: sha256:{{ hbase_archive_file_checksum256 }}
+    run_once: true
     delegate_to: localhost
 
   - name: Copy archive
     copy:
-      src: "{{ script_path }}/{{ hbase_file }}"
+      src: "{{ script_path }}/{{ hbase_archive }}"
       dest: "/tmp"
       remote_src: yes
 
   - name: Extract archive
     ansible.builtin.unarchive:
-      src: "/tmp/{{ hbase_file }}"
-      dest: "{{ script_path }}"
+      src: "/tmp/{{ hbase_archive }}"
+      dest: "/tmp"
       remote_src: yes
 
   - name: Write config template
