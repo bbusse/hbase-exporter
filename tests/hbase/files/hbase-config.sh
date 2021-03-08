@@ -38,32 +38,6 @@ EOF
     echo "$CONFIG"
 }
 
-prepare_hbase() {
-    if ! [ -f "$HBASE_TEST_SUITE_EXECUTABLE" ]; then
-        if [ -f "$HBASE_FILE" ]; then
-            printf "HBase archive exists\n"
-            if compare_checksum $HBASE_FILE $HBASE_FILE_CKSUM; then
-                extract_archive $HBASE_FILE $HBASE_VERSION
-                mv -f "${HBASE_DIR}" hbase
-                return
-            else
-                printf "HBase archive has wrong checksum (%s)\n" "$1"
-                printf "Execute script again to redownload file\n"
-                exit 1
-            fi
-        fi
-
-        printf "Downloading %s\n" "$1"
-        curl -LO "${1}"
-
-        if compare_checksum $HBASE_FILE $HBASE_FILE_CKSUM; then
-            extract_archive $HBASE_FILE $HBASE_VERSION
-            mv -f ${HBASE_DIR} hbase
-        fi
-    fi
-}
-
 check_dependencies
-#prepare_hbase ${HBASE_URL}
 HBASE_CONFIG=$(create_hbase_config_template)
 write_file ${HBASE_CONFIG_TEMPLATE} "${HBASE_CONFIG}"

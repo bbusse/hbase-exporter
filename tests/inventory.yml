@@ -1,4 +1,6 @@
 all:
+  vars:
+
   children:
     namenodes:
       vars:

@@ -1,0 +1,3 @@
+hbase_version: "0.96.1.1"
+hbase_archive: "hbase-{{ hbase_version }}-hadoop2-bin.tar.gz"
+hbase_archive_url: "https://archive.apache.org/dist/hbase/hbase-{{ hbase_version }}/{{ hbase_archive }}"

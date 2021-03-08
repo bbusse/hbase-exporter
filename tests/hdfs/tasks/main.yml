@@ -1,9 +1,29 @@
 ---
 
-  - name: Download and extract HDFS archive
-    ansible.builtin.shell:
-      cmd: hdfs-setup.sh
-      chdir: "{{ hadoop_prefix }}"
+  - name: Download Hadoop archive
+    get_url:
+      url: "{{ hadoop_archive_url }}"
+      dest: "{{ script_path }}"
+      mode: 0600
+      checksum: sha256:273d5fa1d479d0bb96759b16cf4cbd6ba3e7f863a0778cbae55ab83417e961f0
+    delegate_to: localhost
+
+  - name: Copy archive
+    copy:
+      src: "{{ script_path }}/{{ hadoop_archive }}"
+      dest: "/tmp"
+      remote_src: yes
+
+  - name: Extract archive
+    ansible.builtin.unarchive:
+      src: "/tmp/{{ hadoop_archive }}"
+      dest: "{{ script_path }}"
+      remote_src: yes
+
+  - name: Write config template
+    ansible.builtin.command:
+      cmd: "{{ script_path }}/hdfs/files/hadoop-config.sh"
+    delegate_to: localhost
 
   - name: Create core-site.xml
     template: src={{ hdfs_config_path}}/core-site.xml.j2 dest={{ hdfs_config_path}}/core-site.xml mode=0700

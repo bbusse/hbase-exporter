@@ -114,33 +114,7 @@ EOF
     echo "$CONFIG"
 }
 
-prepare_hadoop() {
-    if ! [ -f "$HDFS_TEST_SUITE_EXECUTABLE" ]; then
-        printf "Setting up Hadoop\n"
-        if [ -f "$HADOOP_FILE" ]; then
-            printf "Hadoop archive exists\n"
-            if compare_checksum $HADOOP_FILE $HADOOP_FILE_CKSUM; then
-                extract_archive "$HADOOP_FILE" "$HADOOP_VERSION"
-                mv -f hadoop-$HADOOP_VERSION hadoop/
-                return
-            else
-                printf "Hadoop archive has wrong checksum (%s)\n" "$1"
-                printf "Execute script again to redownload file\n"
-                exit 1
-            fi
-        fi
-
-        printf "Downloading %s\n" "$1"
-        curl -LO "${1}"
-        if compare_checksum $HADOOP_FILE $HADOOP_FILE_CKSUM; then
-            extract_archive "$HADOOP_FILE" "$HADOOP_VERSION"
-            mv -f hadoop-$HADOOP_VERSION hadoop/
-        fi
-    fi
-}
-
 check_dependencies
-prepare_hadoop ${HADOOP_URL}
 HDFS_CONFIG=$(create_hdfs_config_template)
 HDFS_CONFIG_CORE=$(create_hdfs_core_config_template)
 HDFS_CONFIG_MAPRED=$(create_hdfs_mapred_config_template)

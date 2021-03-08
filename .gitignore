@@ -5,7 +5,6 @@ hbase-protobuf-python/__pycache__/
 hbase-protobuf-python/client/
 hbase-protobuf-python/server/
 bash_unit
-tests/hbase
 tests/hbase-?.?.?/
 tests/hbase-?.?.?-bin.tar.gz
 tests/hbase-?.??.?.?-hadoop2-bin.tar.gz

@@ -1,0 +1,29 @@
+---
+
+  - name: Download HBase archive
+    get_url:
+      url: "{{ hbase_archive_url }}"
+      dest: "{{ script_path }}"
+      mode: 0600
+      checksum: sha256:7334e7da0b655ab02cfc64454c3d2e93a4c584efbde2dfd37915b9530d1643f8
+    delegate_to: localhost
+
+  - name: Copy archive
+    copy:
+      src: "{{ script_path }}/{{ hbase_file }}"
+      dest: "/tmp"
+      remote_src: yes
+
+  - name: Extract archive
+    ansible.builtin.unarchive:
+      src: "/tmp/{{ hbase_file }}"
+      dest: "{{ script_path }}"
+      remote_src: yes
+
+  - name: Write config template
+    ansible.builtin.command:
+      cmd: "{{ script_path }}/hbase/files/hbase-config.sh"
+    delegate_to: localhost
+
+  - name: Create hbase-site.xml
+    template: src={{ script_path }}/{{ hbase_config_path }}/hbase-site.xml.j2 dest={{ script_path }}/{{ hbase_config_path }}/hbase-site.xml mode=0700
