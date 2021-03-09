@@ -8,11 +8,11 @@ HBASE_DIR="hbase-${HBASE_VERSION}-hadoop2"
 #HBASE_URL="https://downloads.apache.org/hbase/${HBASE_VERSION}/${HBASE_FILE}"
 HBASE_URL="https://archive.apache.org/dist/hbase/hbase-${HBASE_VERSION}/${HBASE_FILE}"
 HBASE_FILE_CKSUM="1625453f839f7d8c86078a131af9731f6df28c59e58870db84913dcbc640d430253134a825de7cec247ea1f0cf232435765e00844ee2e4faf31aeb356955c478"
-HBASE_CONFIG_TEMPLATE="hbase/conf/hbase-site.xml.j2"
-HBASE_TEST_SUITE_EXECUTABLE="hbase/bin/hbase"
+HBASE_PATH="/tmp"
+HBASE_CONFIG_TEMPLATE="${HBASE_PATH}/hbase/conf/hbase-site.xml.j2"
 
 SCRIPT_PATH=$(dirname "$0")
-source $SCRIPT_PATH/../../setup.sh
+source $SCRIPT_PATH/../../../setup.sh
 
 create_hbase_config_template() {
     read -r -d '' CONFIG <<EOF

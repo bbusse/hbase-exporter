@@ -2,18 +2,12 @@
 
 set -ueo pipefail
 
-HADOOP_VERSION="2.10.1"
-HADOOP_FILE="hadoop-$HADOOP_VERSION.tar.gz"
-HADOOP_URL="https://artfiles.org/apache.org/hadoop/common/hadoop-${HADOOP_VERSION}/${HADOOP_FILE}"
-HADOOP_FILE_CKSUM="2460e02cd1f80dfed7a8981bbc934c095c0a341435118bec781fd835ec2ebdc5543a03d92d24f2ddeebdfe1c2c460065ba1d394ed9a73cbb2020b40a8d8b5e07"
-HDFS_CONFIG_TEMPLATE="hadoop/etc/hadoop/hdfs-site.xml.j2"
-HDFS_CONFIG_TEMPLATE_CORE="hadoop/etc/hadoop/core-site.xml.j2"
-HDFS_CONFIG_TEMPLATE_MAPRED="hadoop/etc/hadoop/mapred-site.xml.j2"
-HDFS_CONFIG_DATANODES="localhost"
-HDFS_TEST_SUITE_EXECUTABLE="hadoop/bin/hdfs"
+HDFS_CONFIG_TEMPLATE="/tmp/hadoop/etc/hadoop/hdfs-site.xml.j2"
+HDFS_CONFIG_TEMPLATE_CORE="/tmp/hadoop/etc/hadoop/core-site.xml.j2"
+HDFS_CONFIG_TEMPLATE_MAPRED="/tmp/hadoop/etc/hadoop/mapred-site.xml.j2"
 
 SCRIPT_PATH=$(dirname "$0")
-source $SCRIPT_PATH/../../setup.sh
+source setup.sh
 
 create_hdfs_core_config_template() {
     #printf "Writing HDFS core-site.xml config\n"
@@ -23,7 +17,7 @@ create_hdfs_core_config_template() {
 <configuration>
   <property>
     <name>fs.defaultFS</name>
-    <value>hdfs://{{ cluster_id }}</value>
+    <value>hdfs://{{ hdfs_cluster_id }}</value>
   </property>
   <property>
     <name>dfs.journalnode.edits.dir</name>
@@ -57,38 +51,38 @@ create_hdfs_config_template() {
 <configuration>
   <property>
     <name>dfs.nameservices</name>
-    <value>{{ cluster_id }}</value>
+    <value>{{ hdfs_cluster_id }}</value>
   </property>
   <property>
-    <name>dfs.ha.namenodes.{{ cluster_id }}</name>
+    <name>dfs.ha.namenodes.{{ hdfs_cluster_id }}</name>
     <value>nn1,nn2</value>
   </property>
   <property>
     <name>fs.defaultFS</name>
-    <value>hdfs://{{ cluster_id }}</value>
+    <value>hdfs://{{ hdfs_cluster_id }}</value>
   </property>
   <property>
-    <name>dfs.namenode.rpc-address.{{ cluster_id }}.nn1</name>
+    <name>dfs.namenode.rpc-address.{{ hdfs_cluster_id }}.nn1</name>
     <value>{{ namenode_1 }}:8020</value>
   </property>
   <property>
-    <name>dfs.namenode.rpc-address.{{ cluster_id }}.nn2</name>
+    <name>dfs.namenode.rpc-address.{{ hdfs_cluster_id }}.nn2</name>
     <value>{{ namenode_2 }}:8020</value>
   </property>
   <property>
-     <name>dfs.namenode.http-address.{{ cluster_id }}.nn1</name>
+     <name>dfs.namenode.http-address.{{ hdfs_cluster_id }}.nn1</name>
      <value>{{ namenode_1 }}:50070</value>
   </property>
   <property>
-     <name>dfs.namenode.http-address.{{ cluster_id }}.nn2</name>
+     <name>dfs.namenode.http-address.{{ hdfs_cluster_id }}.nn2</name>
      <value>{{ namenode_2}}:50070</value>
   </property>
   <property>
-    <name>dfs.namenode.http-address.{{ cluster_id }}.nn1</name>
+    <name>dfs.namenode.http-address.{{ hdfs_cluster_id }}.nn1</name>
     <value>{{ namenode_1 }}:9870</value>
   </property>
   <property>
-    <name>dfs.namenode.http-address.{{ cluster_id }}.nn2</name>
+    <name>dfs.namenode.http-address.{{ hdfs_cluster_id }}.nn2</name>
     <value>{{ namenode_2 }}:9870</value>
   </property>
   <property>
@@ -118,4 +112,3 @@ HDFS_CONFIG_MAPRED=$(create_hdfs_mapred_config_template)
 write_file ${HDFS_CONFIG_TEMPLATE} "${HDFS_CONFIG}"
 write_file ${HDFS_CONFIG_TEMPLATE_CORE} "${HDFS_CONFIG_CORE}"
 write_file ${HDFS_CONFIG_TEMPLATE_MAPRED} "${HDFS_CONFIG_MAPRED}"
-write_file ${HDFS_CONFIG_DATANODES} "localhost"

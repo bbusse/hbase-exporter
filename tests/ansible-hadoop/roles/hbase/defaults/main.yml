@@ -1,0 +1,7 @@
+hbase_version: "0.96.1.1"
+hbase_archive_file: "hbase-{{ hbase_version }}-hadoop2-bin.tar.gz"
+hbase_archive_file_checksum256: "7334e7da0b655ab02cfc64454c3d2e93a4c584efbde2dfd37915b9530d1643f8"
+hbase_archive_url: "https://archive.apache.org/dist/hbase/hbase-{{ hbase_version }}/{{ hbase_archive_file }}"
+hbase_config_path: "/tmp/hbase/conf"
+hbase_rootdir: "/tmp/hbase-root"
+hbase_datadir: "/tmp/hbase-data"

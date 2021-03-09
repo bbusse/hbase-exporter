@@ -1,4 +1,0 @@
-hadoop_version: "2.10.0"
-hadoop_archive_file: "hadoop-{{ hadoop_version }}.tar.gz"
-hadoop_archive_file_checksum256: "273d5fa1d479d0bb96759b16cf4cbd6ba3e7f863a0778cbae55ab83417e961f0"
-hadoop_archive_url: "https://artfiles.org/apache.org/hadoop/common/hadoop-{{ hadoop_version }}}/{{ hadoop_archive_file }}"

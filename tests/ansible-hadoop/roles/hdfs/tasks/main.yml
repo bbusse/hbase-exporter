@@ -1,0 +1,37 @@
+---
+
+  - name: Download Hadoop archive if not existent
+    get_url:
+      url: "{{ hadoop_archive_url }}"
+      dest: "{{ hadoop_path }}/{{ hadoop_archive_file }}"
+      mode: 0600
+      checksum: sha256:{{ hadoop_archive_file_checksum256 }}
+    run_once: true
+    delegate_to: localhost
+
+  - name: Extract archive
+    ansible.builtin.unarchive:
+      src: "{{ hadoop_path }}/{{ hadoop_archive_file }}"
+      dest: "{{ hadoop_path }}"
+
+  - name: Recursively remove directory
+    ansible.builtin.file:
+      path: "{{ hadoop_path }}/{{ hadoop_dir }}"
+      state: absent
+
+  - name: Rename dir
+    command: mv -f {{ hadoop_path }}/{{ hadoop_archive_dir }} {{ hadoop_path }}/{{ hadoop_dir }}
+
+  - name: Write config templates
+    ansible.builtin.command:
+      cmd: "roles/hdfs/files/hadoop-config.sh"
+    delegate_to: localhost
+
+  - name: Create core-site.xml
+    template: src={{ hadoop_config_path}}/core-site.xml.j2 dest={{ hadoop_config_path}}/core-site.xml mode=0700
+
+  - name: Create hdfs-site.xml
+    template: src={{ hadoop_config_path}}/hdfs-site.xml.j2 dest={{ hadoop_config_path}}/hdfs-site.xml mode=0700
+
+  - name: Create mapred-site.xml
+    template: src={{ hadoop_config_path}}/core-site.xml.j2 dest={{ hadoop_config_path}}/mapred-site.xml mode=0700

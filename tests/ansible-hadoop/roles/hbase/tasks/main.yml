@@ -1,0 +1,31 @@
+---
+
+  - name: Download HBase archive locally
+    get_url:
+      url: "{{ hbase_archive_url }}"
+      dest: "/tmp/hbase.tar.gz"
+      mode: 0600
+      checksum: sha256:{{ hbase_archive_file_checksum256 }}
+    run_once: true
+    delegate_to: localhost
+
+  - name: Copy and extract archive
+    ansible.builtin.unarchive:
+      src: "/tmp/hbase.tar.gz"
+      dest: "/tmp"
+
+  - name: Recursively remove directory
+    ansible.builtin.file:
+      path: /tmp/hbase
+      state: absent
+
+  - name: Rename dir
+    command: mv -f /tmp/hbase-0.96.1.1-hadoop2 /tmp/hbase
+
+  - name: Write config template
+    ansible.builtin.command:
+      cmd: "hbase/files/hbase-config.sh"
+    delegate_to: localhost
+
+  - name: Create hbase-site.xml
+    template: src={{ hbase_config_path }}/hbase-site.xml.j2 dest={{ hbase_config_path }}/hbase-site.xml mode=0700

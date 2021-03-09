@@ -1,18 +1,10 @@
 #!/usr/bin/env bash
 
+SETUP_HBASE=false
+SETUP_HADOOP=true
 HBASE_TIME_STARTUP=15
 HBASE_EXPORTER_TIME_STARTUP=60
-HBASE_CMD="./bin/hbase-daemon.sh --config conf start master"
-HDFS_FORMAT=false
 HADOOP_CONFIG_DIR="hadoop/etc/hadoop"
-HDFS_CMD_NAMENODE="./hadoop/bin/hdfs --config ${HADOOP_CONFIG_DIR} namenode"
-HDFS_CMD_DATANODE="./hadoop/bin/hdfs --config ${HADOOP_CONFIG_DIR} datanode"
-HDFS_CMD_ZKFC="./hadoop/bin/hdfs --config ${HADOOP_CONFIG_DIR} start zkfc"
-HDFS_CMD_FORMAT="./hadoop/bin/hdfs --config ${HADOOP_CONFIG_DIR} namenode -format"
-HDFS_CMD_FORMAT_HA="./hadoop/bin/hdfs --config ${HADOOP_CONFIG_DIR} namenode -initializeSharedEdits"
-
-SCRIPT_PATH=$(dirname "$0")
-source $SCRIPT_PATH/setup.sh
 
 setup_suite() {
     if [ "FreeBSD" = "$(uname)" ]; then
@@ -23,44 +15,37 @@ setup_suite() {
 
     export HADOOP_PREFIX="$(pwd)/hadoop"
 
-    # Setup HBase
-    if ! ansible-playbook -i inventory.yml \
-                          -e "hdfs_config_path=${HADOOP_PREFIX}/etc/hadoop" \
-                          -e "script_path=$(pwd)" \
-                          hbase-create.yml; then
+    cd ansible-hadoop/ || exit 1
 
-         printf "Failed to setup HBase to run test suite\n"
-         exit 1
+    SCRIPT_PATH=$(dirname "$0")
+    source $SCRIPT_PATH/ansible-hadoop/setup.sh
+
+    # Setup Hadoop
+    if [ true = "$SETUP_HADOOP" ]; then
+        if ! ansible-playbook -i inventory.yml \
+                              -e hadoop_path="/tmp" \
+                              -e hdfs_cluster_id="test-cluster" \
+                              hdfs-create.yml; then
+
+             printf "Failed to setup HDFS to run test suite\n"
+             exit 1
+        fi
     fi
 
-    # Setup HDFS
-    if ! ansible-playbook -i inventory.yml \
-                          -e "hdfs_config_path=$(pwd)/hadoop/etc/hadoop" \
-                          -e "script_path=$(pwd)" \
-                          hdfs-create.yml; then
+    # Setup HBase
+    if [ true = "$SETUP_HBASE" ]; then
+        if ! ansible-playbook -i inventory.yml \
+                              -e hbase_path="/tmp" \
+                              hbase-create.yml; then
 
-         printf "Failed to setup HDFS to run test suite\n"
-         exit 1
+             printf "Failed to setup HBase to run test suite\n"
+             exit 1
+        fi
     fi
 
     # Start hdfs
-    if [ true = "$HDFS_FORMAT" ]; then
-        printf "Formatting %s\n" "$1"
-        r=run $HDFS_CMD_FORMAT "HDFS FORMAT"
-        r=run $HDFS_CMD_FORMAT_HA "HDFS FORMAT HA"
-    fi
-
-    run "$HDFS_CMD_NAMENODE" "HDFS Namenode"
-    run "$HDFS_CMD_DATANODE" "HDFS Datanode"
 
     # Start HBase
-    cd hbase/ || exit
-    run "$HBASE_CMD" "HBASE"
-    if [[ "$r" == *"Stop it first."* ]]; then
-        printf "HBase is already running. Stop it manually first, then run script again"
-        exit 1
-    fi
-    sleep $HBASE_TIME_STARTUP
 
     # Start exporter
     run_exporter
