@@ -1,4 +1,4 @@
-group_vars/
+ansible-hadoop
 hbase-exporter.log
 hbase-protobuf-python/*pb2.py
 hbase-protobuf-python/__pycache__/
