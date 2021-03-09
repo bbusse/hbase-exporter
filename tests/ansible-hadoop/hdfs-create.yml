@@ -1,5 +1,0 @@
----
-
-- hosts: namenodes
-  roles:
-    - hdfs
