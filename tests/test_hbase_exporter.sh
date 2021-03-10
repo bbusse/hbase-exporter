@@ -3,6 +3,7 @@
 SETUP_HADOOP=true
 SETUP_HBASE=true
 ANSIBLE_HADOOP_REPO_URL="https://github.com/bbusse/ansible-hadoop"
+ANSIBLE_HADOOP_REPO_BRANCH="main"
 HBASE_TIME_STARTUP=15
 HBASE_EXPORTER_TIME_STARTUP=60
 
@@ -15,8 +16,13 @@ setup_suite() {
 
     export HADOOP_PREFIX="$(pwd)/hadoop"
 
-    git clone --depth 1 ${ANSIBLE_HADOOP_REPO_URL}
-    cd ansible-hadoop/ || exit 1
+    if [ -f "ansible-hadoop" ]; then
+        git clone --depth 1 ${ANSIBLE_HADOOP_REPO_URL}
+        cd ansible-hadoop/ || exit 1
+    else
+        cd ansible-hadoop/ || exit 1
+        git pull origin ${ANSIBLE_HADOOP_REPO_BRANCH}
+    fi
 
     SCRIPT_PATH=$(dirname "$0")
     source $SCRIPT_PATH/ansible-hadoop/setup.sh
@@ -27,6 +33,7 @@ setup_suite() {
                               -e java_home="/" \
                               -e hadoop_path="/tmp" \
                               -e hdfs_cluster_id="test-cluster" \
+                              --ask-become \
                               hdfs-create.yml; then
 
              printf "Failed to setup HDFS to run test suite\n"
@@ -39,6 +46,7 @@ setup_suite() {
         if ! ansible-playbook -i inventory.yml \
                               -e java_home="/" \
                               -e hbase_path="/tmp" \
+                              --ask-become \
                               hbase-create.yml; then
 
              printf "Failed to setup HBase to run test suite\n"
