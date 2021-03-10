@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-SETUP_HBASE=false
 SETUP_HADOOP=true
+SETUP_HBASE=true
+ANSIBLE_HADOOP_REPO_URL="https://github.com/bbusse/ansible-hadoop"
 HBASE_TIME_STARTUP=15
 HBASE_EXPORTER_TIME_STARTUP=60
-HADOOP_CONFIG_DIR="hadoop/etc/hadoop"
 
 setup_suite() {
     if [ "FreeBSD" = "$(uname)" ]; then
@@ -15,6 +15,7 @@ setup_suite() {
 
     export HADOOP_PREFIX="$(pwd)/hadoop"
 
+    git clone --depth 1 ${ANSIBLE_HADOOP_REPO_URL}
     cd ansible-hadoop/ || exit 1
 
     SCRIPT_PATH=$(dirname "$0")
@@ -23,6 +24,7 @@ setup_suite() {
     # Setup Hadoop
     if [ true = "$SETUP_HADOOP" ]; then
         if ! ansible-playbook -i inventory.yml \
+                              -e java_home="/" \
                               -e hadoop_path="/tmp" \
                               -e hdfs_cluster_id="test-cluster" \
                               hdfs-create.yml; then
@@ -35,6 +37,7 @@ setup_suite() {
     # Setup HBase
     if [ true = "$SETUP_HBASE" ]; then
         if ! ansible-playbook -i inventory.yml \
+                              -e java_home="/" \
                               -e hbase_path="/tmp" \
                               hbase-create.yml; then
 
@@ -44,8 +47,20 @@ setup_suite() {
     fi
 
     # Start hdfs
+    if ! ansible-playbook -i inventory.yml \
+                             hdfs-start.yml; then
+
+         printf "Failed to start HDFS to run test suite\n"
+         exit 1
+    fi
 
     # Start HBase
+    if ! ansible-playbook -i inventory.yml \
+                             hbase-start.yml; then
+
+         printf "Failed to start HBASE to run test suite\n"
+         exit 1
+    fi
 
     # Start exporter
     run_exporter
